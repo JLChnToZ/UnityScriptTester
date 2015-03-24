@@ -16,46 +16,56 @@ namespace ScriptTester {
 		bool forceUpdateProps = false;
 		bool showProps = true;
 		bool showMethods = true;
-	
-		[MenuItem("Window/Script Tester/Inspector+")]
-		public static void ShowWindow() {
-			EditorWindow.GetWindow(typeof(InspectorPlus));
-		}
+		bool locked = false;
+		int[] instanceIds = new int[0];
 	
 		void OnEnable() {
 			title = "Inspector+";
 			OnSelectionChange();
 		}
 		
+		void OnFocus() {
+			UpdateValues();
+		}
+		
 		void OnGUI() {
 			GUILayout.BeginHorizontal(EditorStyles.toolbar);
-			if (GUILayout.Button("Menu", EditorStyles.toolbarDropDown))
+			if(GUILayout.Button("Menu", EditorStyles.toolbarDropDown))
 				ShowMenu();
-			if (Event.current.type == EventType.Repaint)
+			if(Event.current.type == EventType.Repaint)
 				toolbarMenuPos = GUILayoutUtility.GetLastRect();
 			GUILayout.FlexibleSpace();
 			GUILayout.EndHorizontal();
 			GUI.changed = false;
 			scrollPos = GUILayout.BeginScrollView(scrollPos);
-			foreach (var drawerGroup in drawers)
-				foreach (var drawer in drawerGroup) {
-					if (!(drawer.shown = EditorGUILayout.InspectorTitlebar(drawer.shown, drawer.target)))
+			foreach(var drawerGroup in drawers)
+				foreach(var drawer in drawerGroup) {
+					drawer.shown = EditorGUILayout.InspectorTitlebar(drawer.shown, drawer.target);
+					Helper.StoreState(drawer.target, drawer.shown);
+					if(!drawer.shown)
 						continue;
 					EditorGUI.indentLevel++;
 					EditorGUILayout.BeginVertical();
-					foreach (var item in drawer.drawer) {
+					foreach(var item in drawer.drawer) {
 						var methodDrawer = item as ComponentMethodDrawer;
-						if (methodDrawer != null) {
+						if(methodDrawer != null) {
+							EditorGUI.indentLevel--;
+							EditorGUILayout.BeginHorizontal();
+							EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
+							EditorGUILayout.BeginVertical();
 							methodDrawer.Draw();
-							if (GUILayout.Button("Execute " + methodDrawer.Info.Name))
+							if(methodDrawer.Info != null && GUILayout.Button("Execute " + methodDrawer.Info.Name))
 								methodDrawer.Call();
-						} else if (item != null) {
+							EditorGUILayout.EndVertical();
+							EditorGUILayout.EndHorizontal();
+							EditorGUI.indentLevel++;
+						} else if(item != null) {
 							item.Draw();
-							if (item.Changed) {
-								if (!Helper.AssignValue(item.Info, drawer.target, item.Value)) {
+							if(item.Changed) {
+								if(!Helper.AssignValue(item.Info, drawer.target, item.Value)) {
 									object value;
 									var propDrawer = item as MethodPropertyDrawer;
-									if (propDrawer != null && Helper.FetchValue(propDrawer.Info, drawer.target, out value))
+									if(propDrawer != null && Helper.FetchValue(propDrawer.Info, drawer.target, out value))
 										propDrawer.Value = value;
 								}
 							}
@@ -65,6 +75,7 @@ namespace ScriptTester {
 					EditorGUI.indentLevel--;
 				}
 			GUILayout.FlexibleSpace();
+			GUILayout.Space(EditorGUIUtility.singleLineHeight / 2);
 			GUILayout.EndScrollView();
 		}
 		
@@ -72,12 +83,17 @@ namespace ScriptTester {
 			var menu = new GenericMenu();
 			menu.AddItem(new GUIContent("Update Values"), false, UpdateValues);
 			menu.AddItem(new GUIContent("Reload All"), false, RefreshList);
+			menu.AddItem(new GUIContent("Lock Selection"), locked, () => {
+				locked = !locked;
+				if(!locked)
+					OnSelectionChange();
+			});
 			menu.AddSeparator("");
 			menu.AddItem(new GUIContent("Show Private Members"), privateFields, () => {
 				privateFields = !privateFields;
 				RefreshList();
 			});
-			menu.AddItem(new GUIContent("Force Update Properties"), forceUpdateProps, () => {
+			menu.AddItem(new GUIContent("Update Properties in Edit Mode"), forceUpdateProps, () => {
 				forceUpdateProps = !forceUpdateProps;
 				UpdateValues();
 			});
@@ -99,7 +115,8 @@ namespace ScriptTester {
 		}
 		
 		void OnSelectionChange() {
-			var instanceIds = Selection.instanceIDs;
+			if(!locked)
+				instanceIds = Selection.instanceIDs;
 			var pendingRemoveDrawers = new List<InspectorDrawer[]>();
 			var pendingAddDrawers = new List<InspectorDrawer[]>();
 			foreach (var drawer in drawers)
@@ -117,7 +134,7 @@ namespace ScriptTester {
 			var ret = new List<InspectorDrawer>();
 			var target = EditorUtility.InstanceIDToObject(instanceID);
 			try {
-				ret.Add(CreateDrawer(target, true));
+				ret.Add(CreateDrawer(target, Helper.GetState<bool>(target, true)));
 			} catch (Exception ex) {
 				Debug.LogException(ex);
 			}
@@ -125,7 +142,7 @@ namespace ScriptTester {
 			if (gameObject != null)
 				foreach (var component in gameObject.GetComponents(typeof(Component))) {
 					try {
-						ret.Add(CreateDrawer(component, false));
+						ret.Add(CreateDrawer(component, Helper.GetState<bool>(component, false)));
 					} catch (Exception ex) {
 						Debug.LogException(ex);
 					}
@@ -140,14 +157,12 @@ namespace ScriptTester {
 			var drawer = new InspectorDrawer(target);
 			var targetType = target.GetType();
 			var fields = targetType.GetFields(flag);
-			var methods = targetType.GetMethods(flag)
-				.Where(mi => !mi.IsSpecialName || (!mi.Name.StartsWith("set_", StringComparison.Ordinal) && !mi.Name.StartsWith("get_", StringComparison.Ordinal))).ToArray();
-			var props = targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray();
+			var props = !showProps ? null : targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray();
 			foreach (var field in fields)
 				try {
 					if (Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
 						continue;
-					drawer.drawer.Add(new MethodPropertyDrawer(field.FieldType, field.Name, field.GetValue(target)) {
+					drawer.drawer.Add(new MethodPropertyDrawer(field.FieldType, Helper.GetMemberName(field, true), field.GetValue(target)) {
 						AllowReferenceMode = false,
 						Info = field
 					});
@@ -159,22 +174,17 @@ namespace ScriptTester {
 					try {
 						if (Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
 							continue;
-						drawer.drawer.Add(new MethodPropertyDrawer(prop.PropertyType, prop.Name, prop.CanRead && EditorApplication.isPlaying ? prop.GetValue(target, null) : null) {
+						drawer.drawer.Add(new MethodPropertyDrawer(prop.PropertyType, Helper.GetMemberName(prop, true), prop.CanRead && EditorApplication.isPlaying ? prop.GetValue(target, null) : null) {
 							AllowReferenceMode = false,
-							Info = prop
+							Info = prop,
+							Updatable = Helper.GetState<bool>(prop, true),
+							ShowUpdatable = true
 						});
 					} catch (Exception ex) {
 						Debug.LogException(ex);
 					}
 			if (showMethods)
-				foreach (var method in methods)
-					try {
-						if (Attribute.IsDefined(method, typeof(ObsoleteAttribute)))
-							continue;
-						drawer.drawer.Add(new ComponentMethodDrawer(target, method) { ShouldDrawHeader = false });
-					} catch (Exception ex) {
-						Debug.LogException(ex);
-					}
+				drawer.drawer.Add(new ComponentMethodDrawer(target) { ShouldDrawHeader = false });
 			foreach (var d in drawer.drawer)
 				d.OnRequireRedraw += Repaint;
 			drawer.shown = shown;
@@ -192,7 +202,8 @@ namespace ScriptTester {
 						var propDrawer = drawerItem as MethodPropertyDrawer;
 						if (propDrawer == null)
 							continue;
-						if (!updateProps && propDrawer.Info is PropertyInfo)
+						var isPropInfo = propDrawer.Info is PropertyInfo;
+						if ((!updateProps || !propDrawer.Updatable) && isPropInfo)
 							continue;
 						object value;
 						if (Helper.FetchValue(propDrawer.Info, drawer.target, out value))

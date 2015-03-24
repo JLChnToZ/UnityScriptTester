@@ -60,11 +60,10 @@ namespace ScriptTester {
 		public ComponentMethodDrawer() {
 		}
 		
-		public ComponentMethodDrawer(UnityEngine.Object target, MethodInfo methodInfo) {
+		public ComponentMethodDrawer(UnityEngine.Object target) {
 			component = target;
+			drawHeader = false;
 			InitComponentMethods();
-			selectedMethodIndex = methods.FindIndex(cm => cm.method == methodInfo);
-			InitMethodParams();
 		}
 		
 		public void Call() {
@@ -126,17 +125,25 @@ namespace ScriptTester {
 		void InitComponentMethods() {
 			methods.Clear();
 			AddComponentMethod(component);
-			var gameObject = component as GameObject;
-			if(gameObject != null)
-				foreach(var c in gameObject.GetComponents(typeof(Component)))
-					AddComponentMethod(c);
-			methodNames = methods.Select(m => string.Format(
-				"{0} ({1})/{2} ({3} parameters)",
-				m.target.GetType().Name,
-				m.target.GetInstanceID(),
-				Helper.GetMemberName(m.method as MemberInfo),
-				m.method.GetParameters().Length
-			)).ToArray();
+			if(drawHeader) {
+				var gameObject = component as GameObject;
+				if(gameObject != null)
+					foreach(var c in gameObject.GetComponents(typeof(Component)))
+						AddComponentMethod(c);
+				methodNames = methods.Select(m => string.Format(
+					"{0} ({1})/{2} ({3} parameters)",
+					m.target.GetType().Name,
+					m.target.GetInstanceID(),
+					Helper.GetMemberName(m.method as MemberInfo),
+					m.method.GetParameters().Length
+				)).ToArray();
+			} else {
+				methodNames = methods.Select(m => string.Format(
+					"{0} ({1} parameters)",
+					Helper.GetMemberName(m.method as MemberInfo),
+					m.method.GetParameters().Length
+				)).ToArray();
+			}
 			selectedMethodIndex = -1;
 			selectedMethod = null;
 			parameterInfo = null;
@@ -164,8 +171,7 @@ namespace ScriptTester {
 				InitComponentMethods();
 				GUI.changed = false;
 			}
-			if(drawHeader)
-				selectedMethodIndex = EditorGUILayout.Popup("Method", selectedMethodIndex, methodNames);
+			selectedMethodIndex = EditorGUILayout.Popup("Method", selectedMethodIndex, methodNames);
 			if(selectedMethodIndex >= 0)
 				DrawMethod();
 		}

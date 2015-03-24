@@ -11,11 +11,6 @@ namespace ScriptTester {
 	
 		bool stopAtExceptions;
 	
-		[MenuItem("Window/Script Tester/Method Caller")]
-		public static void ShowWindow() {
-			EditorWindow.GetWindow(typeof(TestingScript));
-		}
-	
 		void OnEnable() {
 			title = "Test Call Method";
 		}

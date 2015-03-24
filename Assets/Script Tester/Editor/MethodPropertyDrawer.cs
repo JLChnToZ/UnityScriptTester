@@ -28,6 +28,8 @@ namespace ScriptTester {
 		bool allowReferenceMode = true;
 		bool privateFields = true;
 		bool optionalPrivateFields = true;
+		bool showUpdatable;
+		bool updatable;
 		public event Action OnRequireRedraw;
 		
 		readonly List<MethodPropertyDrawer> arrayContentDrawer;
@@ -67,6 +69,16 @@ namespace ScriptTester {
 		
 		public bool Changed {
 			get { return changed; }
+		}
+		
+		public bool ShowUpdatable {
+			get { return showUpdatable; }
+			set { showUpdatable = value; }
+		}
+		
+		public bool Updatable {
+			get { return updatable; }
+			set { updatable = value; }
 		}
 		
 		public bool AllowReferenceMode {
@@ -221,6 +233,8 @@ namespace ScriptTester {
 		
 		public void Draw(bool readOnly, Rect? rect = null) {
 			var referenceModeBtn = allowReferenceMode || (allowReferenceMode && optionalPrivateFields) || castableTypes.Count > 1;
+			if(!rect.HasValue)
+				EditorGUI.indentLevel--;
 			EditorGUILayout.BeginHorizontal();
 			if(rect.HasValue) {
 				Rect sRect = referenceModeBtn ? Helper.ScaleRect(rect.Value, 0, 0, 1, 1, offsetWidth: -EditorGUIUtility.singleLineHeight) : rect.Value;
@@ -228,10 +242,17 @@ namespace ScriptTester {
 					DrawReferencedField(sRect);
 				else
 					DrawDirectField(readOnly, sRect);
-			} else if(referenceMode)
-				DrawReferencedField(null);
-			else
-				DrawDirectField(readOnly, null);
+			} else {
+				if(showUpdatable) {
+					updatable = EditorGUILayout.ToggleLeft(new GUIContent("", "Update Enabled"), updatable, GUILayout.Width(EditorGUIUtility.singleLineHeight));
+					Helper.StoreState(memberInfo, updatable);
+				} else
+					EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
+				if(referenceMode)
+					DrawReferencedField(null);
+				else
+					DrawDirectField(readOnly, null);
+			}
 			if(!readOnly && referenceModeBtn) {
 				if(rect.HasValue) {
 					if(GUI.Button(Helper.ScaleRect(rect.Value, 1, 0.5F, 0, 0, -EditorGUIUtility.singleLineHeight, -7.5F, 15, 15), "...", EditorStyles.miniButton))
@@ -244,6 +265,8 @@ namespace ScriptTester {
 				}
 			}
 			EditorGUILayout.EndHorizontal();
+			if(!rect.HasValue)
+				EditorGUI.indentLevel++;
 			if(!readOnly) {
 				if(!referenceMode && castableTypes.Count == 0)
 					EditorGUILayout.HelpBox(string.Format("{0} is not supported.", requiredType.Name), MessageType.Warning);
@@ -389,6 +412,12 @@ namespace ScriptTester {
 							value = EditorGUI.Vector4Field(rect.Value, name, (Vector4)(value ?? Vector4.zero));
 						else
 							value = EditorGUILayout.Vector4Field(name, (Vector4)(value ?? Vector4.zero));
+						break;
+					case PropertyType.Quaterion:
+						if(rect.HasValue)
+							value = Helper.QuaterionField(rect.Value, name, (Quaternion)(value ?? Quaternion.identity));
+						else
+							value = Helper.QuaterionField(name, (Quaternion)(value ?? Quaternion.identity));
 						break;
 					case PropertyType.Color:
 						if(rect.HasValue)
