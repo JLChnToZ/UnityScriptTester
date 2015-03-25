@@ -33,6 +33,7 @@ namespace ScriptTester {
 		public UnityEngine.Object target;
 		public List<IReflectorDrawer> drawer;
 		public bool shown;
+		public bool isInternalType;
 		public InspectorDrawer(UnityEngine.Object target) {
 			this.target = target;
 			this.drawer = new List<IReflectorDrawer>();
@@ -185,16 +186,100 @@ namespace ScriptTester {
 			return sb;
 		}
 		
-		internal static Quaternion QuaterionField(string label, Quaternion value, params GUILayoutOption[] options) {
+		internal static Quaternion QuaternionField(string label, Quaternion value, params GUILayoutOption[] options) {
 			var cValue = new Vector4(value.x, value.y, value.z, value.w);
 			cValue = EditorGUILayout.Vector4Field(label, cValue, options);
 			return new Quaternion(cValue.x, cValue.y, cValue.z, cValue.w);
 		}
 		
-		internal static Quaternion QuaterionField(Rect position, string label, Quaternion value) {
+		internal static Quaternion QuaternionField(Rect position, string label, Quaternion value) {
 			var cValue = new Vector4(value.x, value.y, value.z, value.w);
 			cValue = EditorGUI.Vector4Field(position, label, cValue);
 			return new Quaternion(cValue.x, cValue.y, cValue.z, cValue.w);
+		}
+		
+		internal static int EnumField(Rect position, string label, Type type, int value) {
+			string[] itemNames;
+			int[] itemValues;
+			int val = EnumFieldPreProcess(type, value, out itemNames, out itemValues);
+			int newVal = EditorGUI.Popup(position, label, val, itemNames);
+			return EnumFieldPostProcess(itemValues, newVal);
+		}
+		
+		internal static int EnumField(string label, Type type, int value, params GUILayoutOption[] options) {
+			string[] itemNames;
+			int[] itemValues;
+			int val = EnumFieldPreProcess(type, value, out itemNames, out itemValues);
+			int newVal = EditorGUILayout.Popup(label, val, itemNames, options);
+			return EnumFieldPostProcess(itemValues, newVal);
+		}
+		
+		static int EnumFieldPreProcess(Type type, int val, out string[] itemNames, out int[] itemValues) {
+			itemNames = Enum.GetNames(type);
+			itemValues = Enum.GetValues(type) as int[];
+			for(int i = 0; i < itemValues.Length; i++)
+				if(val == itemValues[i])
+					return i;
+			return 0;
+		}
+		
+		static int EnumFieldPostProcess(int[] itemValues, int val) {
+			return itemValues[val];
+		}
+		
+		
+		internal static int MaskedEnumField(Rect position, string label, Type type, int mask) {
+			return MaskedEnumField(position, new GUIContent(label), type, mask);
+		}
+		
+		internal static int MaskedEnumField(Rect position, GUIContent label, Type type, int mask) {
+			string[] itemNames;
+			int[] itemValues;
+			int val = MaskedEnumFieldPreProcess(type, mask, out itemNames, out itemValues);
+			int newVal = EditorGUI.MaskField(position, label, val, itemNames);
+			return MaskedEnumFieldPostProcess(itemValues, mask, val, newVal);
+		}
+		
+		internal static int MaskedEnumField(string label, Type type, int mask, params GUILayoutOption[] options) {
+			return MaskedEnumField(new GUIContent(label), type, mask, options);
+		}
+		
+		internal static int MaskedEnumField(GUIContent label, Type type, int mask, params GUILayoutOption[] options) {
+			string[] itemNames;
+			int[] itemValues;
+			int val = MaskedEnumFieldPreProcess(type, mask, out itemNames, out itemValues);
+			int newVal = EditorGUILayout.MaskField(label, val, itemNames, options);
+			return MaskedEnumFieldPostProcess(itemValues, mask, val, newVal);
+		}
+		
+		static int MaskedEnumFieldPreProcess(Type type, int val, out string[] itemNames, out int[] itemValues) {
+			itemNames = Enum.GetNames(type);
+			itemValues = Enum.GetValues(type) as int[];
+			int maskVal = 0;
+			for(int i = 0; i < itemValues.Length; i++) {
+				if(itemValues[i] != 0) {
+					if((val & itemValues[i]) == itemValues[i])
+						maskVal |= 1 << i;
+				} else if(val == 0)
+					maskVal |= 1 << i;
+			}
+			return maskVal;
+		}
+		
+		static int MaskedEnumFieldPostProcess(int[] itemValues, int val, int maskVal, int newMaskVal) {
+			int changes = maskVal ^ newMaskVal;
+			for(int i = 0; i < itemValues.Length; i++)
+				if((changes & (1 << i)) != 0) {
+					if((newMaskVal & (1 << i)) != 0) {
+						if(itemValues[i] == 0) {
+							val = 0;
+							break;
+						}
+						val |= itemValues[i];
+					} else
+						val &= ~itemValues[i];
+				}
+			return val;
 		}
 		
 		internal static bool AssignValue(MemberInfo info, object target, object value) {
@@ -224,7 +309,8 @@ namespace ScriptTester {
 					value = propertyInfo.GetValue(target, null);
 				else
 					return false;
-			} catch {
+			} catch(Exception ex) {
+				value = ex;
 				return false;
 			}
 			return true;

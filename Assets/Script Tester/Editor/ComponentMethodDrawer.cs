@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using UnityEditor.AnimatedValues;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,6 +11,9 @@ namespace ScriptTester {
 	class ComponentMethodDrawer:IReflectorDrawer {
 		UnityEngine.Object component;
 		readonly List<ComponentMethod> methods = new List<ComponentMethod>();
+		AnimBool showMethodOptions;
+		AnimBool showMethodSelector;
+		AnimBool showResultSelector;
 		string[] methodNames;
 		int selectedMethodIndex;
 		MethodInfo selectedMethod;
@@ -58,11 +62,19 @@ namespace ScriptTester {
 		}
 		
 		public ComponentMethodDrawer() {
+			showMethodSelector = new AnimBool(false);
+			showMethodOptions = new AnimBool(false);
+			showResultSelector = new AnimBool(false);
+			showMethodSelector.valueChanged.AddListener(RequireRedraw);
+			showMethodOptions.valueChanged.AddListener(RequireRedraw);
+			showResultSelector.valueChanged.AddListener(RequireRedraw);
 		}
 		
-		public ComponentMethodDrawer(UnityEngine.Object target) {
+		public ComponentMethodDrawer(UnityEngine.Object target)
+			: this() {
 			component = target;
 			drawHeader = false;
+			showMethodSelector.value = true;
 			InitComponentMethods();
 		}
 		
@@ -101,10 +113,21 @@ namespace ScriptTester {
 					EditorGUILayout.BeginVertical();
 					component = EditorGUILayout.ObjectField("Target", component, typeof(UnityEngine.Object), true);
 				}
-				if(component != null)
+				if(component != null) {
+					if(GUI.changed) {
+						InitComponentMethods();
+						GUI.changed = false;
+					}
+					showMethodSelector.target = true;
+				} else
+					showMethodSelector.target = false;
+				if(EditorGUILayout.BeginFadeGroup(showMethodSelector.faded))
 					DrawComponent();
-				if(result != null || thrownException != null)
+				EditorGUILayout.EndFadeGroup();
+				showResultSelector.target = result != null || thrownException != null;
+				if(EditorGUILayout.BeginFadeGroup(showResultSelector.faded))
 					DrawResult();
+				EditorGUILayout.EndFadeGroup();
 				if(drawHeader) {
 					EditorGUILayout.EndVertical();
 					EditorGUI.indentLevel--;
@@ -167,20 +190,21 @@ namespace ScriptTester {
 		}
 		
 		void DrawComponent() {
-			if(GUI.changed) {
-				InitComponentMethods();
-				GUI.changed = false;
-			}
 			selectedMethodIndex = EditorGUILayout.Popup("Method", selectedMethodIndex, methodNames);
-			if(selectedMethodIndex >= 0)
+			if(selectedMethodIndex >= 0) {
+				if(GUI.changed) {
+					InitMethodParams();
+					GUI.changed = false;
+				}
+				showMethodOptions.target = true;
+			} else
+				showMethodOptions.target = false;
+			if(EditorGUILayout.BeginFadeGroup(showMethodOptions.faded))
 				DrawMethod();
+			EditorGUILayout.EndFadeGroup();
 		}
 		
 		void DrawMethod() {
-			if(GUI.changed) {
-				InitMethodParams();
-				GUI.changed = false;
-			}
 			if(paramsFolded = EditorGUILayout.Foldout(paramsFolded, selectedMethod.Name)) {
 				GUI.changed = false;
 				EditorGUI.indentLevel++;

@@ -28,9 +28,12 @@ namespace ScriptTester {
 		bool allowReferenceMode = true;
 		bool privateFields = true;
 		bool optionalPrivateFields = true;
+		bool masked;
 		bool showUpdatable;
 		bool updatable;
 		public event Action OnRequireRedraw;
+		
+		Exception getException;
 		
 		readonly List<MethodPropertyDrawer> arrayContentDrawer;
 		ReorderableList arrayHandler;
@@ -164,6 +167,11 @@ namespace ScriptTester {
 			}
 		}
 		
+		public Exception GetException {
+			get { return getException; }
+			set { getException = value; }
+		}
+		
 		public MethodPropertyDrawer(Type type, string name, object defaultValue) {
 			this.requiredType = type;
 			this.name = name;
@@ -271,6 +279,8 @@ namespace ScriptTester {
 				if(!referenceMode && castableTypes.Count == 0)
 					EditorGUILayout.HelpBox(string.Format("{0} is not supported.", requiredType.Name), MessageType.Warning);
 			}
+			if(getException != null)
+				EditorGUILayout.HelpBox(getException.Message, MessageType.Error);
 		}
 		
 		void AddField(UnityEngine.Object target) {
@@ -362,10 +372,17 @@ namespace ScriptTester {
 							value = EditorGUILayout.Toggle(name, (bool)(value ?? false));
 						break;
 					case PropertyType.Enum:
+						if(masked) {
+							if(rect.HasValue)
+								value = Helper.MaskedEnumField(rect.Value, name, requiredType, (int)(value ?? 0));
+							else
+								value = Helper.MaskedEnumField(name, requiredType, (int)(value ?? 0));
+							break;
+						}
 						if(rect.HasValue)
-							value = EditorGUI.Popup(rect.Value, name, (int)(value ?? 0), Enum.GetNames(requiredType));
+							value = Helper.EnumField(rect.Value, name, requiredType, (int)(value ?? 0));
 						else
-							value = EditorGUILayout.Popup(name, (int)(value ?? 0), Enum.GetNames(requiredType));
+							value = Helper.EnumField(name, requiredType, (int)(value ?? 0));
 						break;
 					case PropertyType.Long:
 					#if UNITY_5
@@ -415,9 +432,9 @@ namespace ScriptTester {
 						break;
 					case PropertyType.Quaterion:
 						if(rect.HasValue)
-							value = Helper.QuaterionField(rect.Value, name, (Quaternion)(value ?? Quaternion.identity));
+							value = Helper.QuaternionField(rect.Value, name, (Quaternion)(value ?? Quaternion.identity));
 						else
-							value = Helper.QuaterionField(name, (Quaternion)(value ?? Quaternion.identity));
+							value = Helper.QuaternionField(name, (Quaternion)(value ?? Quaternion.identity));
 						break;
 					case PropertyType.Color:
 						if(rect.HasValue)
@@ -513,9 +530,11 @@ namespace ScriptTester {
 				menu.AddItem(new GUIContent("Mode/By Value"), !referenceMode, ChangeMode, false);
 				menu.AddItem(new GUIContent("Mode/By Reference"), referenceMode, ChangeMode, true);
 			}
+			if(currentType == PropertyType.Enum)
+				menu.AddItem(new GUIContent("Multiple Selection"), masked, ChangeMultiSelect, !masked);
 			if(optionalPrivateFields) {
 				if(referenceMode)
-					menu.AddItem(new GUIContent("Allow Private Members"), privateFields, ChangePrivateFields, privateFields);
+					menu.AddItem(new GUIContent("Allow Private Members"), privateFields, ChangePrivateFields, !privateFields);
 				else
 					menu.AddDisabledItem(new GUIContent("Allow Private Members"));
 			}
@@ -530,6 +549,10 @@ namespace ScriptTester {
 		
 		void ChangeMode(object value) {
 			ReferenceMode = (bool)value;
+		}
+		
+		void ChangeMultiSelect(object value) {
+			masked = (bool)value;
 		}
 		
 		void ChangePrivateFields(object value) {

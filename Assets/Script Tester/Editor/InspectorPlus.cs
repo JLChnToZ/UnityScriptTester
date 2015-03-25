@@ -17,6 +17,7 @@ namespace ScriptTester {
 		bool showProps = true;
 		bool showMethods = true;
 		bool locked = false;
+		bool showObsolete = false;
 		int[] instanceIds = new int[0];
 	
 		void OnEnable() {
@@ -65,8 +66,11 @@ namespace ScriptTester {
 								if(!Helper.AssignValue(item.Info, drawer.target, item.Value)) {
 									object value;
 									var propDrawer = item as MethodPropertyDrawer;
-									if(propDrawer != null && Helper.FetchValue(propDrawer.Info, drawer.target, out value))
+									if(propDrawer != null && Helper.FetchValue(propDrawer.Info, drawer.target, out value)) {
 										propDrawer.Value = value;
+										propDrawer.GetException = null;
+									} else
+										propDrawer.GetException = value as Exception;
 								}
 							}
 						}
@@ -83,15 +87,11 @@ namespace ScriptTester {
 			var menu = new GenericMenu();
 			menu.AddItem(new GUIContent("Update Values"), false, UpdateValues);
 			menu.AddItem(new GUIContent("Reload All"), false, RefreshList);
+			menu.AddSeparator("");
 			menu.AddItem(new GUIContent("Lock Selection"), locked, () => {
 				locked = !locked;
 				if(!locked)
 					OnSelectionChange();
-			});
-			menu.AddSeparator("");
-			menu.AddItem(new GUIContent("Show Private Members"), privateFields, () => {
-				privateFields = !privateFields;
-				RefreshList();
 			});
 			menu.AddItem(new GUIContent("Update Properties in Edit Mode"), forceUpdateProps, () => {
 				forceUpdateProps = !forceUpdateProps;
@@ -104,6 +104,14 @@ namespace ScriptTester {
 			});
 			menu.AddItem(new GUIContent("Show Methods"), showMethods, () => {
 				showMethods = !showMethods;
+				RefreshList();
+			});
+			menu.AddItem(new GUIContent("Show Private Members"), privateFields, () => {
+				privateFields = !privateFields;
+				RefreshList();
+			});
+			menu.AddItem(new GUIContent("Show Obsolete Members"), showObsolete, () => {
+				showObsolete = !showObsolete;
 				RefreshList();
 			});
 			menu.DropDown(toolbarMenuPos);
@@ -127,6 +135,7 @@ namespace ScriptTester {
 				if (drawers.FindIndex(drawer => drawer[0].target.GetInstanceID() == instanceID) < 0)
 					pendingAddDrawers.Add(CreateDrawers(instanceID));
 			drawers.AddRange(pendingAddDrawers);
+			UpdateValues();
 			Repaint();
 		}
 		
@@ -158,9 +167,10 @@ namespace ScriptTester {
 			var targetType = target.GetType();
 			var fields = targetType.GetFields(flag);
 			var props = !showProps ? null : targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray();
+			drawer.isInternalType = !(target is MonoBehaviour) || Attribute.IsDefined(target.GetType(), typeof(ExecuteInEditMode));
 			foreach (var field in fields)
 				try {
-					if (Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
+					if (!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
 						continue;
 					drawer.drawer.Add(new MethodPropertyDrawer(field.FieldType, Helper.GetMemberName(field, true), field.GetValue(target)) {
 						AllowReferenceMode = false,
@@ -172,19 +182,19 @@ namespace ScriptTester {
 			if (showProps)
 				foreach (var prop in props)
 					try {
-						if (Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
+						if (!showObsolete && Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
 							continue;
 						drawer.drawer.Add(new MethodPropertyDrawer(prop.PropertyType, Helper.GetMemberName(prop, true), prop.CanRead && EditorApplication.isPlaying ? prop.GetValue(target, null) : null) {
 							AllowReferenceMode = false,
 							Info = prop,
-							Updatable = Helper.GetState<bool>(prop, true),
-							ShowUpdatable = true
+							Updatable = drawer.isInternalType || Helper.GetState<bool>(prop, true),
+							ShowUpdatable = !drawer.isInternalType
 						});
 					} catch (Exception ex) {
 						Debug.LogException(ex);
 					}
 			if (showMethods)
-				drawer.drawer.Add(new ComponentMethodDrawer(target) { ShouldDrawHeader = false });
+				drawer.drawer.Add(new ComponentMethodDrawer(target));
 			foreach (var d in drawer.drawer)
 				d.OnRequireRedraw += Repaint;
 			drawer.shown = shown;
@@ -203,11 +213,14 @@ namespace ScriptTester {
 						if (propDrawer == null)
 							continue;
 						var isPropInfo = propDrawer.Info is PropertyInfo;
-						if ((!updateProps || !propDrawer.Updatable) && isPropInfo)
+						if (!drawer.isInternalType && (!updateProps || !propDrawer.Updatable) && isPropInfo)
 							continue;
 						object value;
-						if (Helper.FetchValue(propDrawer.Info, drawer.target, out value))
+						if(Helper.FetchValue(propDrawer.Info, drawer.target, out value)) {
 							propDrawer.Value = value;
+							propDrawer.GetException = null;
+						} else
+							propDrawer.GetException = value as Exception;
 					}
 		}
 	}
