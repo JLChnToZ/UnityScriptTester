@@ -185,6 +185,12 @@ namespace ScriptTester {
 				rawValue = value;
 				changed = false;
 				SetArray();
+				if (unknownTypeDrawer != null) {
+					if (unknownTypeDrawer.target != value)
+						unknownTypeDrawer = null;
+					else
+						unknownTypeDrawer.UpdateValues(true);
+				}
 			}
 		}
 		
@@ -540,6 +546,7 @@ namespace ScriptTester {
 				} else if (unknownTypeDrawer == null || unknownTypeDrawer.target != target) {
 					unknownTypeDrawer = new InspectorDrawer(target, true, true, privateFields, obsolete, true);
 					unknownTypeDrawer.OnRequireRedraw += RequireRedraw;
+					unknownTypeDrawer.UpdateValues(true);
 				}
 				if (unknownTypeDrawer != null) {
 					unknownTypeDrawer.shown = true;

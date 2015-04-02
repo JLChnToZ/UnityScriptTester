@@ -104,6 +104,23 @@ namespace ScriptTester {
 			EditorGUI.indentLevel--;
 		}
 		
+		public void UpdateValues(bool updateProps) {
+			foreach (var drawerItem in drawer) {
+				var propDrawer = drawerItem as MethodPropertyDrawer;
+				if (propDrawer == null)
+					continue;
+				var isPropInfo = propDrawer.Info is PropertyInfo;
+				if (!isInternalType && (!updateProps || !propDrawer.Updatable) && isPropInfo)
+					continue;
+				object value;
+				if (Helper.FetchValue(propDrawer.Info, target, out value)) {
+					propDrawer.Value = value;
+					propDrawer.GetException = null;
+				} else
+					propDrawer.GetException = value as Exception;
+			}
+		}
+		
 		void RequireRedraw() {
 			if (OnRequireRedraw != null)
 				OnRequireRedraw();

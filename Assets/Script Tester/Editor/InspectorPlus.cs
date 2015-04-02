@@ -176,20 +176,7 @@ namespace ScriptTester {
 		
 		void UpdateValues(bool updateProps) {
 			foreach (var drawerGroup in drawers.SelectMany(drawer => drawer))
-				foreach (var drawerItem in drawerGroup.drawer) {
-					var propDrawer = drawerItem as MethodPropertyDrawer;
-					if (propDrawer == null)
-						continue;
-					var isPropInfo = propDrawer.Info is PropertyInfo;
-					if (!drawerGroup.isInternalType && (!updateProps || !propDrawer.Updatable) && isPropInfo)
-						continue;
-					object value;
-					if(Helper.FetchValue(propDrawer.Info, drawerGroup.target, out value)) {
-						propDrawer.Value = value;
-						propDrawer.GetException = null;
-					} else
-						propDrawer.GetException = value as Exception;
-				}
+				drawerGroup.UpdateValues(updateProps);
 			Repaint();
 		}
 	}
