@@ -402,7 +402,7 @@ namespace ScriptTester {
 							value = EditorGUILayout.Toggle(name, (bool)(value ?? false));
 						break;
 					case PropertyType.Enum:
-						if(masked) {
+						if(masked || readOnly) {
 							if(rect.HasValue)
 								value = Helper.MaskedEnumField(rect.Value, name, requiredType, (int)(value ?? 0));
 							else
