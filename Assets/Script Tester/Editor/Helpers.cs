@@ -29,20 +29,9 @@ namespace ScriptTester {
 		Array
 	}
 	
-	class InspectorDrawer {
-		public UnityEngine.Object target;
-		public List<IReflectorDrawer> drawer;
-		public bool shown;
-		public bool isInternalType;
-		public InspectorDrawer(UnityEngine.Object target) {
-			this.target = target;
-			this.drawer = new List<IReflectorDrawer>();
-		}
-	}
-	
 	struct ComponentMethod {
 		public MethodInfo method;
-		public UnityEngine.Object target;
+		public object target;
 	}
 	
 	struct ComponentFields {
@@ -54,6 +43,7 @@ namespace ScriptTester {
 	interface IReflectorDrawer {
 		void Draw();
 		bool AllowPrivateFields { get; set; }
+		bool AllowObsolete { get; set; }
 		bool Changed { get; }
 		object Value { get; }
 		MemberInfo Info { get; }
@@ -62,6 +52,7 @@ namespace ScriptTester {
 	
 	public static class Helper {
 		internal static readonly Dictionary<Type, PropertyType> propertyTypeMapper = new Dictionary<Type, PropertyType>();
+		static double clickTime;
 		
 		internal static void InitPropertyTypeMapper() {
 			if(propertyTypeMapper.Count > 0)
@@ -114,7 +105,7 @@ namespace ScriptTester {
 		}
 	
 		internal static Rect ScaleRect(Rect source,
-			float xScale, float yScale, float widthScale, float heightScale,
+			float xScale = 0, float yScale = 0, float widthScale = 1, float heightScale = 1,
 			float offsetX = 0, float offsetY = 0, float offsetWidth = 0, float offsetHeight = 0) {
 			return new Rect(
 				source.x + source.width * xScale + offsetX,
@@ -282,6 +273,103 @@ namespace ScriptTester {
 			return val;
 		}
 		
+		internal static string StringField(string label, string value, bool readOnly, params GUILayoutOption[] options) {
+			int lines = CountLines(value);
+			if(lines > 1) {
+				var _opts = options.ToList();
+				_opts.Add(GUILayout.Height(EditorGUIUtility.singleLineHeight * lines));
+				_opts.Add(GUILayout.MaxWidth(EditorGUIUtility.currentViewWidth));
+				EditorGUILayout.BeginVertical();
+				EditorGUILayout.PrefixLabel(label);
+				if(readOnly)
+					EditorGUILayout.SelectableLabel(value, EditorStyles.textArea, _opts.ToArray());
+				else
+					value = EditorGUILayout.TextArea(value, _opts.ToArray());
+				EditorGUILayout.EndVertical();
+			} else {
+				if(readOnly) {
+					var _opts = options.ToList();
+					_opts.Add(GUILayout.Height(EditorGUIUtility.singleLineHeight));
+					EditorGUILayout.BeginHorizontal();
+					EditorGUILayout.PrefixLabel(label);
+					EditorGUILayout.SelectableLabel(value, EditorStyles.textField, _opts.ToArray());
+					EditorGUILayout.EndHorizontal();
+				} else
+					value = EditorGUILayout.TextField(label, value, options);
+			}
+			return value;
+		}
+		
+		internal static string StringField(Rect position, string label, string value, bool readOnly) {
+			if(readOnly) {
+				EditorGUI.SelectableLabel(position, value);
+			} else {
+				int lines = position.height <= EditorGUIUtility.singleLineHeight ? 1 : CountLines(value);
+				if(lines > 1)
+					EditorGUI.PrefixLabel(ScaleRect(position, heightScale: 0, offsetHeight: EditorGUIUtility.singleLineHeight), new GUIContent(label));
+				value = lines > 1 ?
+					EditorGUI.TextArea(ScaleRect(position, offsetY: EditorGUIUtility.singleLineHeight, offsetHeight: -EditorGUIUtility.singleLineHeight), value) : 
+					EditorGUI.TextField(position, label, value);
+			}
+			return value;
+		}
+		
+		internal static UnityEngine.Object ObjectField(string label, UnityEngine.Object value, Type objectType, bool allowScreenObjs, bool readOnly, params GUILayoutOption[] options) {
+			if(!readOnly)
+				return EditorGUILayout.ObjectField(label, value, objectType, allowScreenObjs, options);
+			EditorGUILayout.BeginHorizontal();
+			EditorGUILayout.PrefixLabel(label);
+			var _opts = options.ToList();
+			_opts.Add(GUILayout.Height(EditorGUIUtility.singleLineHeight));
+			if(GUILayout.Button(EditorGUIUtility.ObjectContent(value, objectType), EditorStyles.objectField, _opts.ToArray()))
+				ClickObject(value);
+			EditorGUILayout.EndHorizontal();
+			return value;
+		}
+		
+		internal static UnityEngine.Object ObjectField(Rect position, string label, UnityEngine.Object value, Type objectType, bool allowScreenObjs, bool readOnly) {
+			if(!readOnly)
+				return EditorGUI.ObjectField(position, label, value, objectType, allowScreenObjs);
+			EditorGUI.PrefixLabel(ScaleRect(position, widthScale: 0.5F), new GUIContent(label));
+			if(GUI.Button(ScaleRect(position, 0.5F, widthScale: 0.5F), EditorGUIUtility.ObjectContent(value, objectType), EditorStyles.objectField))
+				ClickObject(value);
+			return value;
+		}
+		
+		static void ClickObject(UnityEngine.Object obj) {
+			var newClickTime = EditorApplication.timeSinceStartup;
+			if(newClickTime - clickTime < 0.3 && obj != null)
+				Selection.activeObject = obj;
+			clickTime = newClickTime;
+			EditorGUIUtility.PingObject(obj);
+		}
+		
+		static int CountLines(string str) {
+			if(string.IsNullOrEmpty(str))
+				return 1;
+			int cursor = 0, count = 0, length = str.Length, i = -1;
+			bool isCR = false;
+			while(cursor < length) {
+				i = str.IndexOf('\r', cursor);
+				if(i >= 0) {
+					count++;
+					isCR = true;
+					cursor = i + 1;
+					continue;
+				}
+				i = str.IndexOf('\n', cursor);
+				if(i >= 0) {
+					if(!isCR || i != 0)
+						count++;
+					isCR = false;
+					cursor = i + 1;
+					continue;
+				}
+				break;
+			}
+			return Math.Max(1, count);
+		}
+		
 		internal static bool AssignValue(MemberInfo info, object target, object value) {
 			try {
 				var fieldInfo = info as FieldInfo;
@@ -296,6 +384,16 @@ namespace ScriptTester {
 				return false;
 			}
 			return true;
+		}
+		
+		internal static bool IsReadOnly(MemberInfo info) {
+			var fieldInfo = info as FieldInfo;
+			if(fieldInfo != null)
+				return fieldInfo.IsInitOnly || fieldInfo.IsLiteral;
+			var propertyInfo = info as PropertyInfo;
+			if(propertyInfo != null)
+				return !propertyInfo.CanWrite;
+			return false;
 		}
 		
 		internal static bool FetchValue(MemberInfo info, object target, out object value) {
@@ -314,6 +412,19 @@ namespace ScriptTester {
 				return false;
 			}
 			return true;
+		}
+		
+		internal static int ObjIdOrHashCode(object obj) {
+			var unityObj = obj as UnityEngine.Object;
+			if (unityObj != null)
+				return unityObj.GetInstanceID();
+			if (obj != null)
+				return obj.GetHashCode();
+			return 0;
+		}
+		
+		internal static GUIStyle GetGUIStyle(string styleName) {
+			return GUI.skin.FindStyle(styleName) ?? EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).FindStyle(styleName);
 		}
 		
 		[MenuItem("Window/Script Tester/Inspector+")]

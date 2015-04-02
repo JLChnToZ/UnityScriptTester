@@ -23,14 +23,18 @@ namespace ScriptTester {
 		int selectedFieldIndex;
 		FieldInfo selectedField;
 		PropertyInfo selectedProperty;
+		InspectorDrawer unknownTypeDrawer;
 		Rect menuButtonRect;
 		bool changed;
 		bool allowReferenceMode = true;
 		bool privateFields = true;
 		bool optionalPrivateFields = true;
+		bool obsolete = true;
 		bool masked;
 		bool showUpdatable;
 		bool updatable;
+		bool arrayShown;
+		bool isInfoReadonly;
 		public event Action OnRequireRedraw;
 		
 		Exception getException;
@@ -51,7 +55,11 @@ namespace ScriptTester {
 
 		public MemberInfo Info {
 			get { return memberInfo; }
-			set { memberInfo = value; }
+			set {
+				memberInfo = value;
+				if(memberInfo != null)
+					isInfoReadonly = Helper.IsReadOnly(memberInfo);
+			}
 		}
 		
 		public MemberInfo RefFieldInfo {
@@ -126,6 +134,19 @@ namespace ScriptTester {
 			}
 			set {
 				privateFields = value;
+				unknownTypeDrawer = null;
+				if(referenceMode)
+					InitFieldTypes();
+			}
+		}
+		
+		public bool AllowObsolete {
+			get {
+				return obsolete;
+			}
+			set {
+				obsolete = value;
+				unknownTypeDrawer = null;
 				if(referenceMode)
 					InitFieldTypes();
 			}
@@ -172,7 +193,7 @@ namespace ScriptTester {
 			set { getException = value; }
 		}
 		
-		public MethodPropertyDrawer(Type type, string name, object defaultValue) {
+		public MethodPropertyDrawer(Type type, string name, object defaultValue, bool allowPrivate, bool allowObsolete) {
 			this.requiredType = type;
 			this.name = name;
 			this.rawValue = defaultValue;
@@ -181,11 +202,13 @@ namespace ScriptTester {
 			this.selectedFieldIndex = -1;
 			this.arrayContentDrawer = new List<MethodPropertyDrawer>();
 			this.arrayHandler = new ReorderableList(arrayContentDrawer, typeof(MethodPropertyDrawer));
+			this.privateFields = allowPrivate;
+			this.obsolete = allowObsolete;
 			InitType();
 		}
 		
 		void ListAddItem(object value = null) {
-			var drawer = new MethodPropertyDrawer(requiredType.GetElementType(), "", value);
+			var drawer = new MethodPropertyDrawer(requiredType.GetElementType(), "", value, privateFields, obsolete);
 			drawer.OnRequireRedraw += RequireRedraw;
 			arrayContentDrawer.Add(drawer);
 		}
@@ -240,12 +263,13 @@ namespace ScriptTester {
 		}
 		
 		public void Draw(bool readOnly, Rect? rect = null) {
+			readOnly |= isInfoReadonly;
 			var referenceModeBtn = allowReferenceMode || (allowReferenceMode && optionalPrivateFields) || castableTypes.Count > 1;
 			if(!rect.HasValue)
 				EditorGUI.indentLevel--;
 			EditorGUILayout.BeginHorizontal();
 			if(rect.HasValue) {
-				Rect sRect = referenceModeBtn ? Helper.ScaleRect(rect.Value, 0, 0, 1, 1, offsetWidth: -EditorGUIUtility.singleLineHeight) : rect.Value;
+				Rect sRect = referenceModeBtn ? Helper.ScaleRect(rect.Value, offsetWidth: -EditorGUIUtility.singleLineHeight) : rect.Value;
 				if(referenceMode)
 					DrawReferencedField(sRect);
 				else
@@ -291,6 +315,7 @@ namespace ScriptTester {
 				flag |= BindingFlags.NonPublic;
 			fields.AddRange(
 				target.GetType().GetFields(flag)
+				.Where(t => obsolete || !Attribute.IsDefined(t, typeof(ObsoleteAttribute)))
 				.Select(f => new ComponentFields {
 					field = f,
 					target = target
@@ -326,7 +351,7 @@ namespace ScriptTester {
 			arrayContentDrawer.Clear();
 			if(requiredType.IsArray && rawValue != null) {
 				foreach(object item in (Array)rawValue)
-					arrayContentDrawer.Add(new MethodPropertyDrawer(requiredType.GetElementType(), "", item));
+					arrayContentDrawer.Add(new MethodPropertyDrawer(requiredType.GetElementType(), "", item, privateFields, obsolete));
 			}
 		}
 		
@@ -361,7 +386,6 @@ namespace ScriptTester {
 		
 		void DrawDirectField(bool readOnly, Rect? rect) {
 			object value = rawValue;
-			string stringValue = string.Empty;
 			GUI.changed = false;
 			try {
 				switch(currentType) {
@@ -462,51 +486,37 @@ namespace ScriptTester {
 						break;
 					case PropertyType.Object:
 						if(rect.HasValue)
-							value = EditorGUI.ObjectField(rect.Value, name, (UnityEngine.Object)value, requiredType, true);
+							value = Helper.ObjectField(rect.Value, name, (UnityEngine.Object)value, requiredType, true, readOnly);
 						else
-							value = EditorGUILayout.ObjectField(name, (UnityEngine.Object)value, requiredType, true);
+							value = Helper.ObjectField(name, (UnityEngine.Object)value, requiredType, true, readOnly);
 						break;
 					case PropertyType.Array:
 						if(rect.HasValue) {
 							arrayHandler.DoList(rect.Value);
 							break;
 						}
-						EditorGUILayout.EndHorizontal();
-						arrayHandler.DoLayoutList();
-						EditorGUILayout.BeginHorizontal();
+						EditorGUILayout.BeginVertical();
+						if(arrayShown = EditorGUILayout.Foldout(arrayShown, name))
+							arrayHandler.DoLayoutList();
+						EditorGUILayout.EndVertical();
 						break;
 					case PropertyType.String:
-						stringValue = (string)value;
-						if(rect.HasValue) {
-							value = EditorGUI.TextField(rect.Value, name, stringValue);
-							break;
-						}
-						if(!string.IsNullOrEmpty(stringValue) && (stringValue.Contains('\r') || stringValue.Contains('\n'))) {
-							EditorGUILayout.PrefixLabel(name);
-							if(readOnly)
-								EditorGUILayout.SelectableLabel(stringValue, EditorStyles.textArea);
-							else
-								value = EditorGUILayout.TextArea(stringValue);
-						} else {
-							if(readOnly) {
-								EditorGUILayout.PrefixLabel(name);
-								EditorGUILayout.SelectableLabel(stringValue, EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight * Mathf.Max(1, stringValue.Length - stringValue.Replace("\r", "").Replace("\n", "").Length)));
-							} else
-								value = EditorGUILayout.TextField(name, stringValue);
-						}
+						if(rect.HasValue)
+							value = Helper.StringField(rect.Value, name, (string)value, readOnly);
+						else
+							value = Helper.StringField(name, (string)value, readOnly);
 						break;
 					default:
-						if(value != null)
-							stringValue = value.ToString();
-						if(rect.HasValue) {
-							value = EditorGUI.TextField(rect.Value, name, stringValue);
-							break;
+						var stringValue = value != null ? value.ToString() : "Null";
+						if (rect.HasValue) {
+							Helper.StringField(rect.Value, name, stringValue, true);
+							DrawUnknownField(readOnly, value);
+						} else {
+							EditorGUILayout.BeginVertical();
+							Helper.StringField(name, stringValue, true);
+							DrawUnknownField(readOnly, value);
+							EditorGUILayout.EndVertical();
 						}
-						EditorGUILayout.PrefixLabel(name);
-						if(!string.IsNullOrEmpty(stringValue) && (stringValue.Contains('\r') || stringValue.Contains('\n')))
-							EditorGUILayout.SelectableLabel(stringValue, EditorStyles.textArea, GUILayout.Height(EditorGUIUtility.singleLineHeight * Mathf.Max(1, stringValue.Length - stringValue.Replace("\r", "").Replace("\n", "").Length)));
-						else
-							EditorGUILayout.SelectableLabel(stringValue, EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
 						break;
 				}
 			} catch(InvalidCastException) {
@@ -519,6 +529,24 @@ namespace ScriptTester {
 				changed |= GUI.changed;
 				rawValue = value;
 			}
+		}
+		
+		void DrawUnknownField(bool readOnly, object target) {
+			if (target == null && unknownTypeDrawer == null)
+				return;
+			if (EditorGUILayout.Foldout(unknownTypeDrawer != null && unknownTypeDrawer.shown, name)) {
+				if (target == null) {
+					unknownTypeDrawer = null;
+				} else if (unknownTypeDrawer == null || unknownTypeDrawer.target != target) {
+					unknownTypeDrawer = new InspectorDrawer(target, true, true, privateFields, obsolete, true);
+					unknownTypeDrawer.OnRequireRedraw += RequireRedraw;
+				}
+				if (unknownTypeDrawer != null) {
+					unknownTypeDrawer.shown = true;
+					unknownTypeDrawer.Draw(false, !requiredType.IsValueType || readOnly);
+				}
+			} else if (unknownTypeDrawer != null)
+				unknownTypeDrawer.shown = false;
 		}
 		
 		void ShowMenu(Rect position) {

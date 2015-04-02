@@ -9,7 +9,7 @@ using ScriptTester;
 
 namespace ScriptTester {
 	class ComponentMethodDrawer:IReflectorDrawer {
-		UnityEngine.Object component;
+		object component;
 		readonly List<ComponentMethod> methods = new List<ComponentMethod>();
 		AnimBool showMethodOptions;
 		AnimBool showMethodSelector;
@@ -21,8 +21,9 @@ namespace ScriptTester {
 		MethodPropertyDrawer[] parameters;
 		MethodPropertyDrawer result;
 		Exception thrownException;
+		string filter;
 		bool titleFolded = true, paramsFolded = true, resultFolded = true,
-			drawHeader = true, privateFields = true;
+			drawHeader = true, privateFields = true, obsolete = true;
 
 		public event Action OnRequireRedraw;
 		
@@ -49,7 +50,17 @@ namespace ScriptTester {
 			}
 			set {
 				privateFields = value;
-				InitComponentMethods();
+				InitComponentMethods(false);
+			}
+		}
+		
+		public bool AllowObsolete {
+			get {
+				return obsolete;
+			}
+			set {
+				obsolete = value;
+				InitComponentMethods(false);
 			}
 		}
 
@@ -70,12 +81,20 @@ namespace ScriptTester {
 			showResultSelector.valueChanged.AddListener(RequireRedraw);
 		}
 		
-		public ComponentMethodDrawer(UnityEngine.Object target)
+		public ComponentMethodDrawer(object target)
 			: this() {
 			component = target;
 			drawHeader = false;
 			showMethodSelector.value = true;
 			InitComponentMethods();
+		}
+		
+		public string Filter {
+			get { return filter; }
+			set {
+				filter = value;
+				InitComponentMethods(false);
+			}
 		}
 		
 		public void Call() {
@@ -87,7 +106,7 @@ namespace ScriptTester {
 				var returnData = selectedMethod.Invoke(component, requestData);
 				result = selectedMethod.ReturnType == typeof(void) ?
 					null :
-					new MethodPropertyDrawer(selectedMethod.ReturnType, "Return data", returnData);
+					new MethodPropertyDrawer(selectedMethod.ReturnType, "Return data", returnData, privateFields, obsolete);
 				for(int i = 0; i < Math.Min(parameters.Length, requestData.Length); i++) {
 					parameters[i].Value = requestData[i];
 					if(parameters[i].ReferenceMode)
@@ -103,7 +122,7 @@ namespace ScriptTester {
 		public void Draw() {
 			if(drawHeader) {
 				EditorGUI.BeginDisabledGroup(component == null);
-				titleFolded = EditorGUILayout.InspectorTitlebar(titleFolded, component) || component == null;
+				titleFolded = EditorGUILayout.InspectorTitlebar(titleFolded, component as UnityEngine.Object) || component == null;
 				EditorGUI.EndDisabledGroup();
 			}
 			GUI.changed = false;
@@ -111,7 +130,7 @@ namespace ScriptTester {
 				if(drawHeader) {
 					EditorGUI.indentLevel++;
 					EditorGUILayout.BeginVertical();
-					component = EditorGUILayout.ObjectField("Target", component, typeof(UnityEngine.Object), true);
+					component = EditorGUILayout.ObjectField("Target", component as UnityEngine.Object, typeof(UnityEngine.Object), true);
 				}
 				if(component != null) {
 					if(GUI.changed) {
@@ -135,17 +154,22 @@ namespace ScriptTester {
 			} 
 		}
 		
-		void AddComponentMethod(UnityEngine.Object target) {
+		void AddComponentMethod(object target) {
 			BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
 			if(privateFields)
 				flag |= BindingFlags.NonPublic;
-			methods.AddRange(component.GetType().GetMethods(flag).Select(m => new ComponentMethod {
-				method = m,
-				target = target
-			}));
+			methods.AddRange(
+				target.GetType().GetMethods(flag)
+				.Where(t => obsolete || !Attribute.IsDefined(t, typeof(ObsoleteAttribute)))
+				.Where(t => string.IsNullOrEmpty(filter) || t.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0)
+				.Select(m => new ComponentMethod {
+					method = m,
+					target = target
+				})
+			);
 		}
 		
-		void InitComponentMethods() {
+		void InitComponentMethods(bool resetIndex = true) {
 			methods.Clear();
 			AddComponentMethod(component);
 			if(drawHeader) {
@@ -156,7 +180,7 @@ namespace ScriptTester {
 				methodNames = methods.Select(m => string.Format(
 					"{0} ({1})/{2} ({3} parameters)",
 					m.target.GetType().Name,
-					m.target.GetInstanceID(),
+					Helper.ObjIdOrHashCode(m.target),
 					Helper.GetMemberName(m.method as MemberInfo),
 					m.method.GetParameters().Length
 				)).ToArray();
@@ -166,6 +190,11 @@ namespace ScriptTester {
 					Helper.GetMemberName(m.method as MemberInfo),
 					m.method.GetParameters().Length
 				)).ToArray();
+			}
+			if(!resetIndex && selectedMethod != null) {
+				selectedMethodIndex = methods.FindIndex(m => m.method == selectedMethod);
+				if(selectedMethodIndex >= 0)
+					return;
 			}
 			selectedMethodIndex = -1;
 			selectedMethod = null;
@@ -182,7 +211,7 @@ namespace ScriptTester {
 			parameters = new MethodPropertyDrawer[parameterInfo.Length];
 			for(int i = 0; i < parameterInfo.Length; i++) {
 				var info = parameterInfo[i];
-				parameters[i] = new MethodPropertyDrawer(info.ParameterType, info.Name, info.IsOptional ? info.DefaultValue : null);
+				parameters[i] = new MethodPropertyDrawer(info.ParameterType, info.Name, info.IsOptional ? info.DefaultValue : null, privateFields, obsolete);
 				parameters[i].OnRequireRedraw += RequireRedraw;
 			}
 			result = null;

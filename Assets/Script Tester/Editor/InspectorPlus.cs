@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using UnityEditor;
-using UnityEditorInternal;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,109 +9,111 @@ using ScriptTester;
 namespace ScriptTester {
 	class InspectorPlus : EditorWindow {
 		readonly List<InspectorDrawer[]> drawers = new List<InspectorDrawer[]>();
+		string searchText;
 		Vector2 scrollPos;
 		Rect toolbarMenuPos;
-		bool privateFields = true;
-		bool forceUpdateProps = false;
-		bool showProps = true;
-		bool showMethods = true;
-		bool locked = false;
-		bool showObsolete = false;
+		bool autoUpdateValues = EditorPrefs.GetBool("inspectorplus_autoupdate", true);
+		bool privateFields = EditorPrefs.GetBool("inspectorplus_private", true);
+		bool forceUpdateProps = EditorPrefs.GetBool("inspectorplus_editupdate", false);
+		bool showProps = EditorPrefs.GetBool("inspectorplus_props", true);
+		bool showMethods = EditorPrefs.GetBool("inspectorplus_methods", true);
+		bool locked = EditorPrefs.GetBool("inspectorplus_lock", false);
+		bool showObsolete = EditorPrefs.GetBool("inspectorplus_obsolete", false);
 		int[] instanceIds = new int[0];
 	
 		void OnEnable() {
 			title = "Inspector+";
-			OnSelectionChange();
+			OnFocus();
 		}
 		
 		void OnFocus() {
-			UpdateValues();
+			OnSelectionChange();
 		}
 		
 		void OnGUI() {
 			GUILayout.BeginHorizontal(EditorStyles.toolbar);
-			if(GUILayout.Button("Menu", EditorStyles.toolbarDropDown))
+			if(GUILayout.Button("Menu", EditorStyles.toolbarDropDown, GUILayout.ExpandWidth(false)))
 				ShowMenu();
 			if(Event.current.type == EventType.Repaint)
 				toolbarMenuPos = GUILayoutUtility.GetLastRect();
-			GUILayout.FlexibleSpace();
+			GUI.changed = false;
+			GUILayout.Space(8);
+			searchText = EditorGUILayout.TextField(searchText, Helper.GetGUIStyle("ToolbarSeachTextField"));
+			if(GUILayout.Button(GUIContent.none, Helper.GetGUIStyle(string.IsNullOrEmpty(searchText) ? "ToolbarSeachCancelButtonEmpty" : "ToolbarSeachCancelButton"))) {
+				searchText = string.Empty;
+				GUI.FocusControl(null);
+			}
+			if(GUI.changed)
+				IterateDrawers<ComponentMethodDrawer>(methodDrawer => methodDrawer.Filter = searchText);
+			GUILayout.Space(8);
 			GUILayout.EndHorizontal();
 			GUI.changed = false;
 			scrollPos = GUILayout.BeginScrollView(scrollPos);
-			foreach(var drawerGroup in drawers)
-				foreach(var drawer in drawerGroup) {
-					drawer.shown = EditorGUILayout.InspectorTitlebar(drawer.shown, drawer.target);
-					Helper.StoreState(drawer.target, drawer.shown);
-					if(!drawer.shown)
-						continue;
-					EditorGUI.indentLevel++;
-					EditorGUILayout.BeginVertical();
-					foreach(var item in drawer.drawer) {
-						var methodDrawer = item as ComponentMethodDrawer;
-						if(methodDrawer != null) {
-							EditorGUI.indentLevel--;
-							EditorGUILayout.BeginHorizontal();
-							EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
-							EditorGUILayout.BeginVertical();
-							methodDrawer.Draw();
-							if(methodDrawer.Info != null && GUILayout.Button("Execute " + methodDrawer.Info.Name))
-								methodDrawer.Call();
-							EditorGUILayout.EndVertical();
-							EditorGUILayout.EndHorizontal();
-							EditorGUI.indentLevel++;
-						} else if(item != null) {
-							item.Draw();
-							if(item.Changed) {
-								if(!Helper.AssignValue(item.Info, drawer.target, item.Value)) {
-									object value;
-									var propDrawer = item as MethodPropertyDrawer;
-									if(propDrawer != null && Helper.FetchValue(propDrawer.Info, drawer.target, out value)) {
-										propDrawer.Value = value;
-										propDrawer.GetException = null;
-									} else
-										propDrawer.GetException = value as Exception;
-								}
-							}
-						}
-					}
-					EditorGUILayout.EndVertical();
-					EditorGUI.indentLevel--;
-				}
+			EditorGUILayout.HelpBox("The main purpose of this panel is provide a general way to debugging and testing the game objects and scripts, " +
+									"it has power to access everything exists in the game and editor, " +
+									"even they are invisible to the global, " +
+									"thus improper use may cause the game or the editor crash in some cases. " +
+									"Use this at your own risk.", MessageType.Info);
+			foreach (var drawer in drawers.SelectMany(drawer => drawer)) {
+				drawer.searchText = searchText;
+				drawer.Draw();
+			}
 			GUILayout.FlexibleSpace();
 			GUILayout.Space(EditorGUIUtility.singleLineHeight / 2);
 			GUILayout.EndScrollView();
 		}
 		
+		void OnInspectorUpdate() {
+			if(!autoUpdateValues || EditorGUIUtility.editingTextField)
+				return;
+			UpdateValues();
+		}
+		
 		void ShowMenu() {
 			var menu = new GenericMenu();
-			menu.AddItem(new GUIContent("Update Values"), false, UpdateValues);
-			menu.AddItem(new GUIContent("Reload All"), false, RefreshList);
+			menu.AddItem(new GUIContent("Refresh"), false, RefreshList);
+			if(autoUpdateValues)
+				menu.AddDisabledItem(new GUIContent("Update Values", "Auto Updating"));
+			else
+				menu.AddItem(new GUIContent("Update Values"), false, UpdateValues);
 			menu.AddSeparator("");
 			menu.AddItem(new GUIContent("Lock Selection"), locked, () => {
 				locked = !locked;
 				if(!locked)
 					OnSelectionChange();
+				EditorPrefs.SetBool("inspectorplus_lock", locked);
+			});
+			menu.AddItem(new GUIContent("Auto Update Values"), autoUpdateValues, () => {
+				autoUpdateValues = !autoUpdateValues;
+				EditorPrefs.SetBool("inspectorplus_autoupdate", autoUpdateValues);
 			});
 			menu.AddItem(new GUIContent("Update Properties in Edit Mode"), forceUpdateProps, () => {
 				forceUpdateProps = !forceUpdateProps;
 				UpdateValues();
+				EditorPrefs.SetBool("inspectorplus_editupdate", forceUpdateProps);
 			});
 			menu.AddSeparator("");
 			menu.AddItem(new GUIContent("Show Properties"), showProps, () => {
 				showProps = !showProps;
 				RefreshList();
+				EditorPrefs.SetBool("inspectorplus_props", showProps);
 			});
 			menu.AddItem(new GUIContent("Show Methods"), showMethods, () => {
 				showMethods = !showMethods;
 				RefreshList();
+				EditorPrefs.SetBool("inspectorplus_methods", showMethods);
 			});
 			menu.AddItem(new GUIContent("Show Private Members"), privateFields, () => {
 				privateFields = !privateFields;
 				RefreshList();
+				IterateDrawers<IReflectorDrawer>(methodDrawer => methodDrawer.AllowPrivateFields = privateFields);
+				EditorPrefs.SetBool("inspectorplus_private", privateFields);
 			});
 			menu.AddItem(new GUIContent("Show Obsolete Members"), showObsolete, () => {
 				showObsolete = !showObsolete;
 				RefreshList();
+				IterateDrawers<IReflectorDrawer>(methodDrawer => methodDrawer.AllowObsolete = showObsolete);
+				EditorPrefs.SetBool("inspectorplus_obsolete", showObsolete);
 			});
 			menu.DropDown(toolbarMenuPos);
 		}
@@ -128,22 +129,21 @@ namespace ScriptTester {
 			var pendingRemoveDrawers = new List<InspectorDrawer[]>();
 			var pendingAddDrawers = new List<InspectorDrawer[]>();
 			foreach (var drawer in drawers)
-				if (drawer.Length <= 0 || drawer[0].target == null || !instanceIds.Contains(drawer[0].target.GetInstanceID()))
+				if (drawer.Length <= 0 || drawer[0].target == null || !instanceIds.Contains(Helper.ObjIdOrHashCode(drawer[0].target)))
 					pendingRemoveDrawers.Add(drawer);
 			drawers.RemoveAll(pendingRemoveDrawers.Contains);
 			foreach (var instanceID in instanceIds)
-				if (drawers.FindIndex(drawer => drawer[0].target.GetInstanceID() == instanceID) < 0)
+				if (drawers.FindIndex(drawer => Helper.ObjIdOrHashCode(drawer[0].target) == instanceID) < 0)
 					pendingAddDrawers.Add(CreateDrawers(instanceID));
 			drawers.AddRange(pendingAddDrawers);
 			UpdateValues();
-			Repaint();
 		}
 		
 		InspectorDrawer[] CreateDrawers(int instanceID) {
 			var ret = new List<InspectorDrawer>();
 			var target = EditorUtility.InstanceIDToObject(instanceID);
 			try {
-				ret.Add(CreateDrawer(target, Helper.GetState<bool>(target, true)));
+				ret.Add(CreateDrawer(target, true));
 			} catch (Exception ex) {
 				Debug.LogException(ex);
 			}
@@ -151,7 +151,7 @@ namespace ScriptTester {
 			if (gameObject != null)
 				foreach (var component in gameObject.GetComponents(typeof(Component))) {
 					try {
-						ret.Add(CreateDrawer(component, Helper.GetState<bool>(component, false)));
+						ret.Add(CreateDrawer(component, false));
 					} catch (Exception ex) {
 						Debug.LogException(ex);
 					}
@@ -160,45 +160,14 @@ namespace ScriptTester {
 		}
 		
 		InspectorDrawer CreateDrawer(UnityEngine.Object target, bool shown) {
-			BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
-			if (privateFields)
-				flag |= BindingFlags.NonPublic;
-			var drawer = new InspectorDrawer(target);
-			var targetType = target.GetType();
-			var fields = targetType.GetFields(flag);
-			var props = !showProps ? null : targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray();
-			drawer.isInternalType = !(target is MonoBehaviour) || Attribute.IsDefined(target.GetType(), typeof(ExecuteInEditMode));
-			foreach (var field in fields)
-				try {
-					if (!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
-						continue;
-					drawer.drawer.Add(new MethodPropertyDrawer(field.FieldType, Helper.GetMemberName(field, true), field.GetValue(target)) {
-						AllowReferenceMode = false,
-						Info = field
-					});
-				} catch (Exception ex) {
-					Debug.LogException(ex);
-				}
-			if (showProps)
-				foreach (var prop in props)
-					try {
-						if (!showObsolete && Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
-							continue;
-						drawer.drawer.Add(new MethodPropertyDrawer(prop.PropertyType, Helper.GetMemberName(prop, true), prop.CanRead && EditorApplication.isPlaying ? prop.GetValue(target, null) : null) {
-							AllowReferenceMode = false,
-							Info = prop,
-							Updatable = drawer.isInternalType || Helper.GetState<bool>(prop, true),
-							ShowUpdatable = !drawer.isInternalType
-						});
-					} catch (Exception ex) {
-						Debug.LogException(ex);
-					}
-			if (showMethods)
-				drawer.drawer.Add(new ComponentMethodDrawer(target));
-			foreach (var d in drawer.drawer)
-				d.OnRequireRedraw += Repaint;
-			drawer.shown = shown;
+			var drawer = new InspectorDrawer(target, shown, showProps, privateFields, showObsolete, showMethods);
+			drawer.OnRequireRedraw += Repaint;
 			return drawer;
+		}
+		
+		void IterateDrawers<T>(Action<T> each) where T: IReflectorDrawer {
+			foreach(var methodDrawer in drawers.SelectMany(drawer => drawer).SelectMany(drawer => drawer.drawer).OfType<T>())
+				each(methodDrawer);
 		}
 		
 		void UpdateValues() {
@@ -206,22 +175,22 @@ namespace ScriptTester {
 		}
 		
 		void UpdateValues(bool updateProps) {
-			foreach (var drawerGroup in drawers)
-				foreach (var drawer in drawerGroup)
-					foreach (var drawerItem in drawer.drawer) {
-						var propDrawer = drawerItem as MethodPropertyDrawer;
-						if (propDrawer == null)
-							continue;
-						var isPropInfo = propDrawer.Info is PropertyInfo;
-						if (!drawer.isInternalType && (!updateProps || !propDrawer.Updatable) && isPropInfo)
-							continue;
-						object value;
-						if(Helper.FetchValue(propDrawer.Info, drawer.target, out value)) {
-							propDrawer.Value = value;
-							propDrawer.GetException = null;
-						} else
-							propDrawer.GetException = value as Exception;
-					}
+			foreach (var drawerGroup in drawers.SelectMany(drawer => drawer))
+				foreach (var drawerItem in drawerGroup.drawer) {
+					var propDrawer = drawerItem as MethodPropertyDrawer;
+					if (propDrawer == null)
+						continue;
+					var isPropInfo = propDrawer.Info is PropertyInfo;
+					if (!drawerGroup.isInternalType && (!updateProps || !propDrawer.Updatable) && isPropInfo)
+						continue;
+					object value;
+					if(Helper.FetchValue(propDrawer.Info, drawerGroup.target, out value)) {
+						propDrawer.Value = value;
+						propDrawer.GetException = null;
+					} else
+						propDrawer.GetException = value as Exception;
+				}
+			Repaint();
 		}
 	}
 }
