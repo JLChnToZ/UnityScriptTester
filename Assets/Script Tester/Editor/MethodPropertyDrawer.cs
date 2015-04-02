@@ -186,7 +186,7 @@ namespace ScriptTester {
 				changed = false;
 				SetArray();
 				if (unknownTypeDrawer != null) {
-					if (unknownTypeDrawer.target != value)
+					if (!unknownTypeDrawer.target.Equals(value))
 						unknownTypeDrawer = null;
 					else
 						unknownTypeDrawer.UpdateValues(true);
