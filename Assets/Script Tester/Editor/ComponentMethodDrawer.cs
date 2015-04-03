@@ -114,7 +114,7 @@ namespace ScriptTester {
 			try {
 				thrownException = null;
 				var requestData = parameters.Select(d => d.Value).ToArray();
-				if(ctorMode) {
+				if(selectedCtor != null) {
 					var returnData = selectedCtor.Invoke(requestData);
 					result = new MethodPropertyDrawer(selectedCtor.ReflectedType, "Constructed object", returnData, privateFields, obsolete);
 				} else {
@@ -182,6 +182,17 @@ namespace ScriptTester {
 					ctorInfo = m
 				})
 			);
+			flag &= ~BindingFlags.Instance;
+			methods.AddRange(
+				type.GetMethods(flag)
+				.Where(t => obsolete || !Attribute.IsDefined(t, typeof(ObsoleteAttribute)))
+				.Where(t => t.ReturnType == type)
+				.Where(t => string.IsNullOrEmpty(filter) || t.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0)
+				.Select(m => new ComponentMethod {
+					method = m,
+					target = null
+				})
+			);
 		}
 		
 		void AddComponentMethod(object target) {
@@ -206,10 +217,16 @@ namespace ScriptTester {
 			else
 				AddComponentMethod(component);
 			if(ctorMode)
-				methodNames = methods.Select(m => string.Format(
-					"Constructor ({0} parameters)",
-					m.ctorInfo.GetParameters().Length
-				)).ToArray();
+				methodNames = methods.Select(m => m.ctorInfo != null ?
+					string.Format(
+						"[Constructor] ({0} parameters)",
+						m.ctorInfo.GetParameters().Length
+					) : string.Format(
+						"{0} ({1} parameters)",
+						Helper.GetMemberName(m.method as MemberInfo),
+						m.method.GetParameters().Length
+					)
+				).ToArray();
 			else if(drawHeader) {
 				var gameObject = component as GameObject;
 				if(gameObject != null)
@@ -244,8 +261,9 @@ namespace ScriptTester {
 		}
 		
 		void InitMethodParams() {
-			if(ctorMode) {
-				selectedCtor = methods[selectedMethodIndex].ctorInfo;
+			selectedCtor = methods[selectedMethodIndex].ctorInfo;
+			if(selectedCtor != null) {
+				selectedMethod = null;
 				component = null;
 				parameterInfo = selectedCtor.GetParameters();
 			} else {
@@ -279,11 +297,11 @@ namespace ScriptTester {
 		}
 		
 		void DrawMethod() {
-			if(paramsFolded = EditorGUILayout.Foldout(paramsFolded, ctorMode ? "Constructor" : selectedMethod.Name)) {
+			if(paramsFolded = EditorGUILayout.Foldout(paramsFolded, selectedCtor != null  ? "Constructor" : selectedMethod.Name)) {
 				GUI.changed = false;
 				EditorGUI.indentLevel++;
 				EditorGUILayout.BeginVertical();
-				if(ctorMode ? selectedCtor.ContainsGenericParameters : selectedMethod.ContainsGenericParameters)
+				if(selectedCtor != null ? selectedCtor.ContainsGenericParameters : selectedMethod.ContainsGenericParameters)
 					EditorGUILayout.HelpBox("Generic method is not supported.", MessageType.Warning);
 				else {
 					if(parameterInfo.Length == 0)
