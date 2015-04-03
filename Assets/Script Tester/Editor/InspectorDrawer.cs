@@ -19,27 +19,27 @@ namespace ScriptTester {
 			this.target = target;
 			this.drawer = new List<IReflectorDrawer>();
 			BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
-			if (showPrivateFields)
+			if(showPrivateFields)
 				flag |= BindingFlags.NonPublic;
 			targetType = target.GetType();
 			var fields = targetType.GetFields(flag);
 			var props = !showProps ? null : targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray();
 			isInternalType = !(target is MonoBehaviour) || Attribute.IsDefined(target.GetType(), typeof(ExecuteInEditMode));
-			foreach (var field in fields)
+			foreach(var field in fields)
 				try {
-					if (!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
+					if(!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
 						continue;
 					drawer.Add(new MethodPropertyDrawer(field.FieldType, Helper.GetMemberName(field, true), field.GetValue(target), showPrivateFields, showObsolete) {
 						AllowReferenceMode = false,
 						Info = field
 					});
-				} catch (Exception ex) {
+				} catch(Exception ex) {
 					Debug.LogException(ex);
 				}
-			if (showProps)
-				foreach (var prop in props)
+			if(showProps)
+				foreach(var prop in props)
 					try {
-						if (!showObsolete && Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
+						if(!showObsolete && Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
 							continue;
 						drawer.Add(new MethodPropertyDrawer(prop.PropertyType, Helper.GetMemberName(prop, true), prop.CanRead && EditorApplication.isPlaying ? prop.GetValue(target, null) : null, showPrivateFields, showObsolete) {
 							AllowReferenceMode = false,
@@ -47,51 +47,51 @@ namespace ScriptTester {
 							Updatable = isInternalType || Helper.GetState<bool>(prop, true),
 							ShowUpdatable = !isInternalType
 						});
-					} catch (Exception ex) {
+					} catch(Exception ex) {
 						Debug.LogException(ex);
 					}
-			if (showMethods)
+			if(showMethods)
 				drawer.Add(new ComponentMethodDrawer(target) { AllowPrivateFields = showPrivateFields });
-			foreach (var d in drawer)
+			foreach(var d in drawer)
 				d.OnRequireRedraw += RequireRedraw;
 			this.shown = Helper.GetState<bool>(target, shown);
 		}
 		
 		public void Draw(bool drawHeader = true, bool readOnly = false) {
-			if (drawHeader) {
+			if(drawHeader) {
 				shown = EditorGUILayout.InspectorTitlebar(shown, target as UnityEngine.Object);
 				Helper.StoreState(target, shown);
-				if (!shown)
+				if(!shown)
 					return;
 			}
 			EditorGUI.indentLevel++;
 			EditorGUILayout.BeginVertical();
-			foreach (var item in drawer) {
+			foreach(var item in drawer) {
 				var methodDrawer = item as ComponentMethodDrawer;
 				var fieldDrawer = item as MethodPropertyDrawer;
-				if (methodDrawer != null) {
+				if(methodDrawer != null) {
 					EditorGUI.indentLevel--;
 					EditorGUILayout.BeginHorizontal();
 					EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
 					EditorGUILayout.BeginVertical();
 					methodDrawer.Draw();
-					if (methodDrawer.Info != null && GUILayout.Button("Execute " + methodDrawer.Info.Name))
+					if(methodDrawer.Info != null && GUILayout.Button("Execute " + methodDrawer.Info.Name))
 						methodDrawer.Call();
 					EditorGUILayout.EndVertical();
 					EditorGUILayout.EndHorizontal();
 					EditorGUI.indentLevel++;
-				} else if (item != null) {
-					if (item.Info != null && !string.IsNullOrEmpty(searchText) && item.Info.Name.IndexOf(searchText, StringComparison.CurrentCultureIgnoreCase) < 0)
+				} else if(item != null) {
+					if(item.Info != null && !string.IsNullOrEmpty(searchText) && item.Info.Name.IndexOf(searchText, StringComparison.CurrentCultureIgnoreCase) < 0)
 						continue;
-					if (fieldDrawer != null)
+					if(fieldDrawer != null)
 						fieldDrawer.Draw(readOnly);
 					else
 						item.Draw();
-					if (item.Changed) {
-						if (!Helper.AssignValue(item.Info, target, item.Value)) {
+					if(item.Changed) {
+						if(!Helper.AssignValue(item.Info, target, item.Value)) {
 							object value;
 							var propDrawer = item as MethodPropertyDrawer;
-							if (propDrawer != null && Helper.FetchValue(propDrawer.Info, target, out value)) {
+							if(propDrawer != null && Helper.FetchValue(propDrawer.Info, target, out value)) {
 								propDrawer.Value = value;
 								propDrawer.GetException = null;
 							} else
@@ -105,15 +105,15 @@ namespace ScriptTester {
 		}
 		
 		public void UpdateValues(bool updateProps) {
-			foreach (var drawerItem in drawer) {
+			foreach(var drawerItem in drawer) {
 				var propDrawer = drawerItem as MethodPropertyDrawer;
-				if (propDrawer == null)
+				if(propDrawer == null)
 					continue;
 				var isPropInfo = propDrawer.Info is PropertyInfo;
-				if (!isInternalType && (!updateProps || !propDrawer.Updatable) && isPropInfo)
+				if(!isInternalType && (!updateProps || !propDrawer.Updatable) && isPropInfo)
 					continue;
 				object value;
-				if (Helper.FetchValue(propDrawer.Info, target, out value)) {
+				if(Helper.FetchValue(propDrawer.Info, target, out value)) {
 					propDrawer.Value = value;
 					propDrawer.GetException = null;
 				} else
@@ -122,7 +122,7 @@ namespace ScriptTester {
 		}
 		
 		void RequireRedraw() {
-			if (OnRequireRedraw != null)
+			if(OnRequireRedraw != null)
 				OnRequireRedraw();
 		}
 	}

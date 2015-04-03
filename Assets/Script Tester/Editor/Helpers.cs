@@ -30,6 +30,7 @@ namespace ScriptTester {
 	}
 	
 	struct ComponentMethod {
+		public ConstructorInfo ctorInfo;
 		public MethodInfo method;
 		public object target;
 	}
@@ -416,9 +417,9 @@ namespace ScriptTester {
 		
 		internal static int ObjIdOrHashCode(object obj) {
 			var unityObj = obj as UnityEngine.Object;
-			if (unityObj != null)
+			if(unityObj != null)
 				return unityObj.GetInstanceID();
-			if (obj != null)
+			if(obj != null)
 				return obj.GetHashCode();
 			return 0;
 		}

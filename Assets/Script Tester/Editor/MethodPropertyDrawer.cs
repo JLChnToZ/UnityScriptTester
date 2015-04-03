@@ -16,6 +16,7 @@ namespace ScriptTester {
 		PropertyType currentType;
 		object rawValue;
 		bool referenceMode;
+		int grabValueMode;
 		
 		UnityEngine.Object component;
 		readonly List<ComponentFields> fields;
@@ -24,6 +25,7 @@ namespace ScriptTester {
 		FieldInfo selectedField;
 		PropertyInfo selectedProperty;
 		InspectorDrawer unknownTypeDrawer;
+		ComponentMethodDrawer ctorDrawer;
 		Rect menuButtonRect;
 		bool changed;
 		bool allowReferenceMode = true;
@@ -111,15 +113,7 @@ namespace ScriptTester {
 					rawValue = null;
 					InitFieldTypes();
 				} else {
-					object val = rawValue;
-					try {
-						if(selectedField != null)
-							val = selectedField.GetValue(component);
-						else if(selectedProperty != null)
-							val = selectedProperty.GetValue(component, null);
-					} catch {
-					}
-					rawValue = val;
+					rawValue = GetReferencedValue();
 					SetArray();
 				}
 				selectedFieldIndex = -1;
@@ -137,6 +131,8 @@ namespace ScriptTester {
 				unknownTypeDrawer = null;
 				if(referenceMode)
 					InitFieldTypes();
+				if(ctorDrawer != null)
+					ctorDrawer.AllowPrivateFields = value;
 			}
 		}
 		
@@ -149,6 +145,8 @@ namespace ScriptTester {
 				unknownTypeDrawer = null;
 				if(referenceMode)
 					InitFieldTypes();
+				if(ctorDrawer != null)
+					ctorDrawer.AllowObsolete = value;
 			}
 		}
 
@@ -160,10 +158,7 @@ namespace ScriptTester {
 		public object Value {
 			get {
 				if(referenceMode) {
-					if(selectedField != null)
-						rawValue = selectedField.GetValue(component);
-					else if(selectedProperty != null)
-						rawValue = selectedProperty.GetValue(component, null);
+					rawValue = GetReferencedValue();
 				} else if(currentType == PropertyType.Array) {
 					var array = Array.CreateInstance(requiredType.GetElementType(), arrayContentDrawer.Count);
 					for(int i = 0; i < arrayContentDrawer.Count; i++)
@@ -185,8 +180,8 @@ namespace ScriptTester {
 				rawValue = value;
 				changed = false;
 				SetArray();
-				if (unknownTypeDrawer != null) {
-					if (!unknownTypeDrawer.target.Equals(value))
+				if(unknownTypeDrawer != null) {
+					if(!unknownTypeDrawer.target.Equals(value))
 						unknownTypeDrawer = null;
 					else
 						unknownTypeDrawer.UpdateValues(true);
@@ -270,13 +265,13 @@ namespace ScriptTester {
 		
 		public void Draw(bool readOnly, Rect? rect = null) {
 			readOnly |= isInfoReadonly;
-			var referenceModeBtn = allowReferenceMode || (allowReferenceMode && optionalPrivateFields) || castableTypes.Count > 1;
+			var referenceModeBtn = (!allowReferenceMode && (currentType == PropertyType.Unknown || currentType == PropertyType.Object || currentType == PropertyType.Array)) || allowReferenceMode || (allowReferenceMode && optionalPrivateFields) || castableTypes.Count > 1;
 			if(!rect.HasValue)
 				EditorGUI.indentLevel--;
 			EditorGUILayout.BeginHorizontal();
 			if(rect.HasValue) {
 				Rect sRect = referenceModeBtn ? Helper.ScaleRect(rect.Value, offsetWidth: -EditorGUIUtility.singleLineHeight) : rect.Value;
-				if(referenceMode)
+				if(referenceMode || grabValueMode == 1)
 					DrawReferencedField(sRect);
 				else
 					DrawDirectField(readOnly, sRect);
@@ -286,7 +281,7 @@ namespace ScriptTester {
 					Helper.StoreState(memberInfo, updatable);
 				} else
 					EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
-				if(referenceMode)
+				if(referenceMode || grabValueMode == 1)
 					DrawReferencedField(null);
 				else
 					DrawDirectField(readOnly, null);
@@ -303,6 +298,8 @@ namespace ScriptTester {
 				}
 			}
 			EditorGUILayout.EndHorizontal();
+			if(grabValueMode == 2)
+				DrawCtorField();
 			if(!rect.HasValue)
 				EditorGUI.indentLevel++;
 			if(!readOnly) {
@@ -361,6 +358,30 @@ namespace ScriptTester {
 			}
 		}
 		
+		object GetReferencedValue() {
+			object val = null;
+			return Helper.FetchValue((MemberInfo)selectedField ?? (MemberInfo)selectedProperty, component, out val) ? val : null;
+		}
+		
+		void DrawCtorField() {
+			if(ctorDrawer == null) {
+				ctorDrawer = new ComponentMethodDrawer(requiredType);
+				ctorDrawer.OnRequireRedraw += RequireRedraw;
+			}
+			EditorGUI.indentLevel++;
+			EditorGUILayout.BeginVertical();
+			ctorDrawer.Draw();
+			if(ctorDrawer.Info != null && GUILayout.Button("Construct"))
+				ctorDrawer.Call();
+			EditorGUILayout.EndVertical();
+			EditorGUI.indentLevel--;
+			if(ctorDrawer.Value != null) {
+				rawValue = ctorDrawer.Value;
+				grabValueMode = 0;
+				RequireRedraw();
+			}
+		}
+		
 		void DrawReferencedField(Rect? rect) {
 			if(rect.HasValue)
 				component = EditorGUI.ObjectField(Helper.ScaleRect(rect.Value, 0, 0, 0.5F, 1), name, component, typeof(UnityEngine.Object), true);
@@ -387,6 +408,11 @@ namespace ScriptTester {
 				component = fields[selectedFieldIndex].target;
 				selectedField = fields[selectedFieldIndex].field;
 				selectedProperty = fields[selectedFieldIndex].property;
+				if(grabValueMode == 1) {
+					rawValue = GetReferencedValue();
+					grabValueMode = 0;
+					RequireRedraw();
+				}
 			}
 		}
 		
@@ -514,7 +540,7 @@ namespace ScriptTester {
 						break;
 					default:
 						var stringValue = value != null ? value.ToString() : "Null";
-						if (rect.HasValue) {
+						if(rect.HasValue) {
 							Helper.StringField(rect.Value, name, stringValue, true);
 							DrawUnknownField(readOnly, value);
 						} else {
@@ -538,21 +564,21 @@ namespace ScriptTester {
 		}
 		
 		void DrawUnknownField(bool readOnly, object target) {
-			if (target == null && unknownTypeDrawer == null)
+			if(target == null && unknownTypeDrawer == null)
 				return;
-			if (EditorGUILayout.Foldout(unknownTypeDrawer != null && unknownTypeDrawer.shown, name)) {
-				if (target == null) {
+			if(EditorGUILayout.Foldout(unknownTypeDrawer != null && unknownTypeDrawer.shown, name)) {
+				if(target == null) {
 					unknownTypeDrawer = null;
-				} else if (unknownTypeDrawer == null || unknownTypeDrawer.target != target) {
+				} else if(unknownTypeDrawer == null || unknownTypeDrawer.target != target) {
 					unknownTypeDrawer = new InspectorDrawer(target, true, true, privateFields, obsolete, true);
 					unknownTypeDrawer.OnRequireRedraw += RequireRedraw;
 					unknownTypeDrawer.UpdateValues(true);
 				}
-				if (unknownTypeDrawer != null) {
+				if(unknownTypeDrawer != null) {
 					unknownTypeDrawer.shown = true;
 					unknownTypeDrawer.Draw(false, !requiredType.IsValueType || readOnly);
 				}
-			} else if (unknownTypeDrawer != null)
+			} else if(unknownTypeDrawer != null)
 				unknownTypeDrawer.shown = false;
 		}
 		
@@ -562,8 +588,14 @@ namespace ScriptTester {
 				foreach(var type in castableTypes)
 					menu.AddItem(new GUIContent("Type/" + type), currentType == type, ChangeType, type);
 			if(allowReferenceMode) {
-				menu.AddItem(new GUIContent("Mode/By Value"), !referenceMode, ChangeMode, false);
-				menu.AddItem(new GUIContent("Mode/By Reference"), referenceMode, ChangeMode, true);
+				menu.AddItem(new GUIContent("Mode/By Value"), !referenceMode, ChangeRefMode, false);
+				menu.AddItem(new GUIContent("Mode/By Reference"), referenceMode, ChangeRefMode, true);
+			}
+			if(!allowReferenceMode || !referenceMode) {
+				if(!allowReferenceMode)
+					menu.AddItem(new GUIContent("Mode/By Value"), grabValueMode == 0, GrabValueMode, 0);
+				menu.AddItem(new GUIContent("Mode/From Component"), grabValueMode == 1, GrabValueMode, 1);
+				menu.AddItem(new GUIContent("Mode/Construct"), grabValueMode == 2, GrabValueMode, 2);
 			}
 			if(currentType == PropertyType.Enum)
 				menu.AddItem(new GUIContent("Multiple Selection"), masked, ChangeMultiSelect, !masked);
@@ -582,8 +614,13 @@ namespace ScriptTester {
 				currentType = type;
 		}
 		
-		void ChangeMode(object value) {
+		void ChangeRefMode(object value) {
 			ReferenceMode = (bool)value;
+			grabValueMode = 0;
+		}
+		
+		void GrabValueMode(object value) {
+			grabValueMode = (int)value;
 		}
 		
 		void ChangeMultiSelect(object value) {
