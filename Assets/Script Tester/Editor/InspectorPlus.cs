@@ -32,7 +32,7 @@ namespace ScriptTester {
 		
 		void OnGUI() {
 			GUILayout.BeginHorizontal(EditorStyles.toolbar);
-			if(GUILayout.Button("Menu", EditorStyles.toolbarDropDown, GUILayout.ExpandWidth(false)))
+			if(GUILayout.Button("Menu", EditorStyles.toolbarButton, GUILayout.ExpandWidth(false)))
 				ShowMenu();
 			if(Event.current.type == EventType.Repaint)
 				toolbarMenuPos = GUILayoutUtility.GetLastRect();

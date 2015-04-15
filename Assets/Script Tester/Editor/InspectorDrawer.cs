@@ -91,11 +91,14 @@ namespace ScriptTester {
 						if(!Helper.AssignValue(item.Info, target, item.Value)) {
 							object value;
 							var propDrawer = item as MethodPropertyDrawer;
-							if(propDrawer != null && Helper.FetchValue(propDrawer.Info, target, out value)) {
-								propDrawer.Value = value;
-								propDrawer.GetException = null;
-							} else
-								propDrawer.GetException = value as Exception;
+							if(propDrawer != null) {
+								var success = Helper.FetchValue(propDrawer.Info, target, out value);
+								if(success) {
+									propDrawer.Value = value;
+									propDrawer.GetException = null;
+								} else
+									propDrawer.GetException = value as Exception;
+							}
 						}
 					}
 				}

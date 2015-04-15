@@ -275,28 +275,41 @@ namespace ScriptTester {
 		}
 		
 		internal static string StringField(string label, string value, bool readOnly, params GUILayoutOption[] options) {
-			int lines = CountLines(value);
-			if(lines > 1) {
-				var _opts = options.ToList();
-				_opts.Add(GUILayout.Height(EditorGUIUtility.singleLineHeight * lines));
-				_opts.Add(GUILayout.MaxWidth(EditorGUIUtility.currentViewWidth));
-				EditorGUILayout.BeginVertical();
-				EditorGUILayout.PrefixLabel(label);
-				if(readOnly)
-					EditorGUILayout.SelectableLabel(value, EditorStyles.textArea, _opts.ToArray());
-				else
-					value = EditorGUILayout.TextArea(value, _opts.ToArray());
-				EditorGUILayout.EndVertical();
+			int length = value == null ? 0 : value.Length;
+			if(length > 5000) {
+				EditorGUILayout.BeginHorizontal();
+				EditorGUILayout.LabelField(label, "Text too long to display (" + length + " characters)");
+				if(GUILayout.Button("Copy", GUILayout.ExpandWidth(false))) 
+					EditorGUIUtility.systemCopyBuffer = value;
+				if(!readOnly && GUILayout.Button("Paste", GUILayout.ExpandWidth(false))) {
+					value = EditorGUIUtility.systemCopyBuffer;
+					GUI.changed = true;
+				}
+				EditorGUILayout.EndHorizontal();
 			} else {
-				if(readOnly) {
+				int lines = CountLines(value);
+				if(lines > 1) {
 					var _opts = options.ToList();
-					_opts.Add(GUILayout.Height(EditorGUIUtility.singleLineHeight));
-					EditorGUILayout.BeginHorizontal();
+					_opts.Add(GUILayout.Height(EditorGUIUtility.singleLineHeight * lines));
+					_opts.Add(GUILayout.MaxWidth(EditorGUIUtility.currentViewWidth));
+					EditorGUILayout.BeginVertical();
 					EditorGUILayout.PrefixLabel(label);
-					EditorGUILayout.SelectableLabel(value, EditorStyles.textField, _opts.ToArray());
-					EditorGUILayout.EndHorizontal();
-				} else
-					value = EditorGUILayout.TextField(label, value, options);
+					if(readOnly)
+						EditorGUILayout.SelectableLabel(value, EditorStyles.textArea, _opts.ToArray());
+					else
+						value = EditorGUILayout.TextArea(value, _opts.ToArray());
+					EditorGUILayout.EndVertical();
+				} else {
+					if(readOnly) {
+						var _opts = options.ToList();
+						_opts.Add(GUILayout.Height(EditorGUIUtility.singleLineHeight));
+						EditorGUILayout.BeginHorizontal();
+						EditorGUILayout.PrefixLabel(label);
+						EditorGUILayout.SelectableLabel(value, EditorStyles.textField, _opts.ToArray());
+						EditorGUILayout.EndHorizontal();
+					} else
+						value = EditorGUILayout.TextField(label, value, options);
+				}
 			}
 			return value;
 		}

@@ -288,10 +288,10 @@ namespace ScriptTester {
 			}
 			if(!readOnly && referenceModeBtn) {
 				if(rect.HasValue) {
-					if(GUI.Button(Helper.ScaleRect(rect.Value, 1, 0.5F, 0, 0, -EditorGUIUtility.singleLineHeight, -7.5F, 15, 15), "...", EditorStyles.miniButton))
+					if(GUI.Button(Helper.ScaleRect(rect.Value, 1, 0.5F, 0, 0, -EditorGUIUtility.singleLineHeight, -7.5F, 15, 15), GUIContent.none, Helper.GetGUIStyle("MiniPullDown")))
 						ShowMenu(rect.Value);
 				} else {
-					if(GUILayout.Button("...", EditorStyles.miniButton, GUILayout.Width(EditorGUIUtility.singleLineHeight)))
+					if(GUILayout.Button(GUIContent.none, Helper.GetGUIStyle("MiniPullDown"), GUILayout.Width(EditorGUIUtility.singleLineHeight)))
 						ShowMenu(menuButtonRect);
 					if(Event.current.type == EventType.Repaint)
 						menuButtonRect = GUILayoutUtility.GetLastRect();
