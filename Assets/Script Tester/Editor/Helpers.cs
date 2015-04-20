@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
 using System.Text;
+using UnityObject = UnityEngine.Object;
 
 namespace ScriptTester {
 	enum PropertyType {
@@ -38,7 +39,7 @@ namespace ScriptTester {
 	struct ComponentFields {
 		public FieldInfo field;
 		public PropertyInfo property;
-		public UnityEngine.Object target;
+		public UnityObject target;
 	}
 	
 	interface IReflectorDrawer {
@@ -78,7 +79,7 @@ namespace ScriptTester {
 			propertyTypeMapper.Add(typeof(Rect), PropertyType.Rect);
 			propertyTypeMapper.Add(typeof(Bounds), PropertyType.Bounds);
 			propertyTypeMapper.Add(typeof(AnimationCurve), PropertyType.Curve);
-			propertyTypeMapper.Add(typeof(UnityEngine.Object), PropertyType.Object);
+			propertyTypeMapper.Add(typeof(UnityObject), PropertyType.Object);
 			propertyTypeMapper.Add(typeof(Array), PropertyType.Array);
 		}
 		
@@ -328,7 +329,7 @@ namespace ScriptTester {
 			return value;
 		}
 		
-		internal static UnityEngine.Object ObjectField(string label, UnityEngine.Object value, Type objectType, bool allowScreenObjs, bool readOnly, params GUILayoutOption[] options) {
+		internal static UnityObject ObjectField(string label, UnityObject value, Type objectType, bool allowScreenObjs, bool readOnly, params GUILayoutOption[] options) {
 			if(!readOnly)
 				return EditorGUILayout.ObjectField(label, value, objectType, allowScreenObjs, options);
 			EditorGUILayout.BeginHorizontal();
@@ -341,7 +342,7 @@ namespace ScriptTester {
 			return value;
 		}
 		
-		internal static UnityEngine.Object ObjectField(Rect position, string label, UnityEngine.Object value, Type objectType, bool allowScreenObjs, bool readOnly) {
+		internal static UnityObject ObjectField(Rect position, string label, UnityObject value, Type objectType, bool allowScreenObjs, bool readOnly) {
 			if(!readOnly)
 				return EditorGUI.ObjectField(position, label, value, objectType, allowScreenObjs);
 			EditorGUI.PrefixLabel(ScaleRect(position, widthScale: 0.5F), new GUIContent(label));
@@ -350,7 +351,7 @@ namespace ScriptTester {
 			return value;
 		}
 		
-		static void ClickObject(UnityEngine.Object obj) {
+		static void ClickObject(UnityObject obj) {
 			var newClickTime = EditorApplication.timeSinceStartup;
 			if(newClickTime - clickTime < 0.3 && obj != null)
 				Selection.activeObject = obj;
@@ -429,7 +430,7 @@ namespace ScriptTester {
 		}
 		
 		internal static int ObjIdOrHashCode(object obj) {
-			var unityObj = obj as UnityEngine.Object;
+			var unityObj = obj as UnityObject;
 			if(unityObj != null)
 				return unityObj.GetInstanceID();
 			if(obj != null)

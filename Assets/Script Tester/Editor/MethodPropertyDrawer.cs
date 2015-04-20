@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using ScriptTester;
+using UnityObject = UnityEngine.Object;
 
 namespace ScriptTester {
 	class MethodPropertyDrawer:IReflectorDrawer {
@@ -18,7 +19,7 @@ namespace ScriptTester {
 		bool referenceMode;
 		int grabValueMode;
 		
-		UnityEngine.Object component;
+		UnityObject component;
 		readonly List<ComponentFields> fields;
 		string[] fieldNames;
 		int selectedFieldIndex;
@@ -44,7 +45,7 @@ namespace ScriptTester {
 		readonly List<MethodPropertyDrawer> arrayContentDrawer;
 		ReorderableList arrayHandler;
 		
-		public UnityEngine.Object Component {
+		public UnityObject Component {
 			get { return component; }
 			set {
 				component = value;
@@ -310,7 +311,7 @@ namespace ScriptTester {
 				EditorGUILayout.HelpBox(getException.Message, MessageType.Error);
 		}
 		
-		void AddField(UnityEngine.Object target) {
+		void AddField(UnityObject target) {
 			if(target == null)
 				return;
 			BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
@@ -384,9 +385,9 @@ namespace ScriptTester {
 		
 		void DrawReferencedField(Rect? rect) {
 			if(rect.HasValue)
-				component = EditorGUI.ObjectField(Helper.ScaleRect(rect.Value, 0, 0, 0.5F, 1), name, component, typeof(UnityEngine.Object), true);
+				component = EditorGUI.ObjectField(Helper.ScaleRect(rect.Value, 0, 0, 0.5F, 1), name, component, typeof(UnityObject), true);
 			else
-				component = EditorGUILayout.ObjectField(name, component, typeof(UnityEngine.Object), true);
+				component = EditorGUILayout.ObjectField(name, component, typeof(UnityObject), true);
 			if(component == null) {
 				EditorGUI.BeginDisabledGroup(true);
 				if(rect.HasValue)
@@ -518,9 +519,9 @@ namespace ScriptTester {
 						break;
 					case PropertyType.Object:
 						if(rect.HasValue)
-							value = Helper.ObjectField(rect.Value, name, (UnityEngine.Object)value, requiredType, true, readOnly);
+							value = Helper.ObjectField(rect.Value, name, (UnityObject)value, requiredType, true, readOnly);
 						else
-							value = Helper.ObjectField(name, (UnityEngine.Object)value, requiredType, true, readOnly);
+							value = Helper.ObjectField(name, (UnityObject)value, requiredType, true, readOnly);
 						break;
 					case PropertyType.Array:
 						if(rect.HasValue) {

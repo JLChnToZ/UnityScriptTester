@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
+using UnityObject = UnityEngine.Object;
 
 namespace ScriptTester {
 	class InspectorDrawer {
@@ -59,7 +60,7 @@ namespace ScriptTester {
 		
 		public void Draw(bool drawHeader = true, bool readOnly = false) {
 			if(drawHeader) {
-				shown = EditorGUILayout.InspectorTitlebar(shown, target as UnityEngine.Object);
+				shown = EditorGUILayout.InspectorTitlebar(shown, target as UnityObject);
 				Helper.StoreState(target, shown);
 				if(!shown)
 					return;

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using ScriptTester;
+using UnityObject = UnityEngine.Object;
 
 namespace ScriptTester {
 	class ComponentMethodDrawer:IReflectorDrawer {
@@ -138,7 +139,7 @@ namespace ScriptTester {
 		public void Draw() {
 			if(drawHeader) {
 				EditorGUI.BeginDisabledGroup(component == null);
-				titleFolded = EditorGUILayout.InspectorTitlebar(titleFolded, component as UnityEngine.Object) || component == null;
+				titleFolded = EditorGUILayout.InspectorTitlebar(titleFolded, component as UnityObject) || component == null;
 				EditorGUI.EndDisabledGroup();
 			}
 			GUI.changed = false;
@@ -146,7 +147,7 @@ namespace ScriptTester {
 				if(drawHeader) {
 					EditorGUI.indentLevel++;
 					EditorGUILayout.BeginVertical();
-					component = EditorGUILayout.ObjectField("Target", component as UnityEngine.Object, typeof(UnityEngine.Object), true);
+					component = EditorGUILayout.ObjectField("Target", component as UnityObject, typeof(UnityObject), true);
 				}
 				if(component != null || ctorMode) {
 					if(GUI.changed) {

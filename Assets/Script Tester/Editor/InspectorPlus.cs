@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using ScriptTester;
+using UnityObject = UnityEngine.Object;
 
 namespace ScriptTester {
 	class InspectorPlus : EditorWindow {
@@ -159,7 +160,7 @@ namespace ScriptTester {
 			return ret.ToArray();
 		}
 		
-		InspectorDrawer CreateDrawer(UnityEngine.Object target, bool shown) {
+		InspectorDrawer CreateDrawer(UnityObject target, bool shown) {
 			var drawer = new InspectorDrawer(target, shown, showProps, privateFields, showObsolete, showMethods);
 			drawer.OnRequireRedraw += Repaint;
 			return drawer;
