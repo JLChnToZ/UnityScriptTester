@@ -141,8 +141,10 @@ namespace ScriptTester {
 		}
 		
 		InspectorDrawer[] CreateDrawers(int instanceID) {
-			var ret = new List<InspectorDrawer>();
 			var target = EditorUtility.InstanceIDToObject(instanceID);
+			if (target == null)
+				return new InspectorDrawer[0];
+			var ret = new List<InspectorDrawer>();
 			try {
 				ret.Add(CreateDrawer(target, true));
 			} catch (Exception ex) {
