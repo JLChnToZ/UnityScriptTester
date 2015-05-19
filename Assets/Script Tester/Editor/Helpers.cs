@@ -166,7 +166,7 @@ namespace ScriptTester {
 			return ret.ToString();
 		}
 		
-		static StringBuilder JoinStringList(StringBuilder sb, IList<string> list, string separator) {
+		internal static StringBuilder JoinStringList(StringBuilder sb, IEnumerable<string> list, string separator) {
 			if(sb == null)
 				sb = new StringBuilder();
 			bool nonFirst = false;

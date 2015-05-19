@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Text;
+using UnityEngine;
 using UnityEditor;
 using UnityEditor.AnimatedValues;
 using System;
@@ -218,34 +219,20 @@ namespace ScriptTester {
 			else
 				AddComponentMethod(component);
 			if(ctorMode)
-				methodNames = methods.Select(m => m.ctorInfo != null ?
-					string.Format(
-						"[Constructor] ({0} parameters)",
-						m.ctorInfo.GetParameters().Length
-					) : string.Format(
-						"{0} ({1} parameters)",
-						Helper.GetMemberName(m.method as MemberInfo),
-						m.method.GetParameters().Length
-					)
-				).ToArray();
+				methodNames = methods.Select((m, i) => GetMethodNameFormatted(m, i)).ToArray();
 			else if(drawHeader) {
 				var gameObject = component as GameObject;
 				if(gameObject != null)
 					foreach(var c in gameObject.GetComponents(typeof(Component)))
 						AddComponentMethod(c);
-				methodNames = methods.Select(m => string.Format(
-					"{0} ({1})/{2} ({3} parameters)",
+				methodNames = methods.Select((m, i) => string.Format(
+					"{0} ({1})/{2}",
 					m.target.GetType().Name,
 					Helper.ObjIdOrHashCode(m.target),
-					Helper.GetMemberName(m.method as MemberInfo),
-					m.method.GetParameters().Length
+					GetMethodNameFormatted(m, i)
 				)).ToArray();
 			} else {
-				methodNames = methods.Select(m => string.Format(
-					"{0} ({1} parameters)",
-					Helper.GetMemberName(m.method as MemberInfo),
-					m.method.GetParameters().Length
-				)).ToArray();
+				methodNames = methods.Select((m, i) => GetMethodNameFormatted(m, i)).ToArray();
 			}
 			if(!resetIndex && selectedMethod != null) {
 				selectedMethodIndex = methods.FindIndex(m => m.method == selectedMethod);
@@ -259,6 +246,21 @@ namespace ScriptTester {
 			parameters = null;
 			result = null;
 			thrownException = null;
+		}
+		
+		string GetMethodNameFormatted(ComponentMethod m, int i) {
+			string name;
+			MethodBase method;
+			if(m.ctorInfo != null) {
+				method = m.ctorInfo;
+				name = "[Constructor]";
+			} else {
+				method = m.method;
+				name = Helper.GetMemberName(method as MemberInfo);
+			}
+			var result = string.Format("{0} {1} ({2})", i + 1, name, Helper.JoinStringList(null, method.GetParameters().Select(x => x.ParameterType.Name), ", "));
+			result = result.Replace (" _", "_");
+			return result;
 		}
 		
 		void InitMethodParams() {
