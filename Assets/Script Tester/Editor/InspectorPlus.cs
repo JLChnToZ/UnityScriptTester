@@ -23,7 +23,11 @@ namespace ScriptTester {
 		int[] instanceIds = new int[0];
 	
 		void OnEnable() {
+			#if UNITY_4
 			title = "Inspector+";
+			#else
+			titleContent = new GUIContent ("Inspector+", EditorGUIUtility.FindTexture ("UnityEditor.InspectorWindow"));
+			#endif
 			OnFocus();
 		}
 		
