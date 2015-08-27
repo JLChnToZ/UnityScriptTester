@@ -256,10 +256,9 @@ namespace ScriptTester {
 				name = "[Constructor]";
 			} else {
 				method = m.method;
-				name = Helper.GetMemberName(method as MemberInfo);
+				name = Helper.GetMemberName(method as MemberInfo).replace('_', ' ');
 			}
-			var result = string.Format("{0} {1} ({2})", i + 1, name, Helper.JoinStringList(null, method.GetParameters().Select(x => x.ParameterType.Name), ", "));
-			result = result.Replace (" _", "_");
+			var result = string.Format("{0:000} {1} ({2})", i + 1, name, Helper.JoinStringList(null, method.GetParameters().Select(x => x.ParameterType.Name), ", "));
 			return result;
 		}
 		

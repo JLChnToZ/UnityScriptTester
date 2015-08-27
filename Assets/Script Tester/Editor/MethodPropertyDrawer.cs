@@ -11,6 +11,7 @@ using UnityObject = UnityEngine.Object;
 namespace ScriptTester {
 	class MethodPropertyDrawer:IReflectorDrawer {
 		public readonly string name;
+		readonly GUIContent nameContent;
 		MemberInfo memberInfo;
 		public Type requiredType;
 		readonly List<PropertyType> castableTypes;
@@ -198,6 +199,7 @@ namespace ScriptTester {
 		public MethodPropertyDrawer(Type type, string name, object defaultValue, bool allowPrivate, bool allowObsolete) {
 			this.requiredType = type;
 			this.name = name;
+			this.nameContent = new GUIContent (name, name);
 			this.rawValue = defaultValue;
 			this.castableTypes = new List<PropertyType>();
 			this.fields = new List<ComponentFields>();
@@ -424,62 +426,62 @@ namespace ScriptTester {
 				switch(currentType) {
 					case PropertyType.Bool:
 						if(rect.HasValue)
-							value = EditorGUI.Toggle(rect.Value, name, (bool)(value ?? false));
+							value = EditorGUI.Toggle(rect.Value, nameContent, (bool)(value ?? false));
 						else
-							value = EditorGUILayout.Toggle(name, (bool)(value ?? false));
+							value = EditorGUILayout.Toggle(nameContent, (bool)(value ?? false));
 						break;
 					case PropertyType.Enum:
 						if(masked || readOnly) {
 							if(rect.HasValue)
-								value = Helper.MaskedEnumField(rect.Value, name, requiredType, (int)(value ?? 0));
+								value = Helper.MaskedEnumField(rect.Value, nameContent, requiredType, (int)(value ?? 0));
 							else
-								value = Helper.MaskedEnumField(name, requiredType, (int)(value ?? 0));
+								value = Helper.MaskedEnumField(nameContent, requiredType, (int)(value ?? 0));
 							break;
 						}
 						if(rect.HasValue)
-							value = Helper.EnumField(rect.Value, name, requiredType, (int)(value ?? 0));
+							value = Helper.EnumField(rect.Value, nameContent, requiredType, (int)(value ?? 0));
 						else
-							value = Helper.EnumField(name, requiredType, (int)(value ?? 0));
+							value = Helper.EnumField(nameContent, requiredType, (int)(value ?? 0));
 						break;
 					case PropertyType.Long:
 					#if UNITY_5
 						if(rect.HasValue)
-							value = EditorGUI.LongField(rect.Value, name, (long)(value ?? 0L));
+							value = EditorGUI.LongField(rect.Value, nameContent, (long)(value ?? 0L));
 						else
-							value = EditorGUILayout.LongField(name, (long)(value ?? 0L));
+							value = EditorGUILayout.LongField(nameContent, (long)(value ?? 0L));
 						break;
 					#endif
 					case PropertyType.Integer:
 						if(rect.HasValue)
-							value = EditorGUI.IntField(rect.Value, name, (int)(value ?? 0));
+							value = EditorGUI.IntField(rect.Value, nameContent, (int)(value ?? 0));
 						else
-							value = EditorGUILayout.IntField(name, (int)(value ?? 0));
+							value = EditorGUILayout.IntField(nameContent, (int)(value ?? 0));
 						break;
 					case PropertyType.Double:
 					#if UNITY_5
 						if(rect.HasValue)
-							value = EditorGUI.DoubleField(rect.Value, name, (double)(value ?? 0));
+							value = EditorGUI.DoubleField(rect.Value, nameContent, (double)(value ?? 0));
 						else
-							value = EditorGUILayout.DoubleField(name, (double)(value ?? 0));
+							value = EditorGUILayout.DoubleField(nameContent, (double)(value ?? 0));
 						break;
 					#endif
 					case PropertyType.Single:
 						if(rect.HasValue)
-							value = EditorGUI.FloatField(rect.Value, name, (float)(value ?? 0F));
+							value = EditorGUI.FloatField(rect.Value, nameContent, (float)(value ?? 0F));
 						else
-							value = EditorGUILayout.FloatField(name, (float)(value ?? 0F));
+							value = EditorGUILayout.FloatField(nameContent, (float)(value ?? 0F));
 						break;
 					case PropertyType.Vector2:
 						if(rect.HasValue)
-							value = EditorGUI.Vector2Field(rect.Value, name, (Vector2)(value ?? Vector2.zero));
+							value = EditorGUI.Vector2Field(rect.Value, nameContent, (Vector2)(value ?? Vector2.zero));
 						else
-							value = EditorGUILayout.Vector2Field(name, (Vector2)(value ?? Vector2.zero));
+							value = EditorGUILayout.Vector2Field(nameContent, (Vector2)(value ?? Vector2.zero));
 						break;
 					case PropertyType.Vector3:
 						if(rect.HasValue)
-							value = EditorGUI.Vector3Field(rect.Value, name, (Vector3)(value ?? Vector3.zero));
+							value = EditorGUI.Vector3Field(rect.Value, nameContent, (Vector3)(value ?? Vector3.zero));
 						else
-							value = EditorGUILayout.Vector3Field(name, (Vector3)(value ?? Vector3.zero));
+							value = EditorGUILayout.Vector3Field(nameContent, (Vector3)(value ?? Vector3.zero));
 						break;
 					case PropertyType.Vector4:
 						if(rect.HasValue)
@@ -495,33 +497,33 @@ namespace ScriptTester {
 						break;
 					case PropertyType.Color:
 						if(rect.HasValue)
-							value = EditorGUI.ColorField(rect.Value, name, (Color)(value ?? Color.white));
+							value = EditorGUI.ColorField(rect.Value, nameContent, (Color)(value ?? Color.white));
 						else
-							value = EditorGUILayout.ColorField(name, (Color)(value ?? Color.white));
+							value = EditorGUILayout.ColorField(nameContent, (Color)(value ?? Color.white));
 						break;
 					case PropertyType.Rect:
 						if(rect.HasValue)
-							value = EditorGUI.RectField(rect.Value, name, (Rect)(value ?? default(Rect)));
+							value = EditorGUI.RectField(rect.Value, nameContent, (Rect)(value ?? default(Rect)));
 						else
-							value = EditorGUILayout.RectField(name, (Rect)(value ?? default(Rect)));
+							value = EditorGUILayout.RectField(nameContent, (Rect)(value ?? default(Rect)));
 						break;
 					case PropertyType.Bounds:
 						if(rect.HasValue)
-							value = EditorGUI.BoundsField(rect.Value, new GUIContent(name), (Bounds)(value ?? default(Bounds)));
+							value = EditorGUI.BoundsField(rect.Value, nameContent, (Bounds)(value ?? default(Bounds)));
 						else
-							value = EditorGUILayout.BoundsField(name, (Bounds)(value ?? default(Bounds)));
+							value = EditorGUILayout.BoundsField(nameContent, (Bounds)(value ?? default(Bounds)));
 						break;
 					case PropertyType.Curve:
 						if(rect.HasValue)
-							value = EditorGUI.CurveField(rect.Value, name, (AnimationCurve)(value ?? new AnimationCurve()));
+							value = EditorGUI.CurveField(rect.Value, nameContent, (AnimationCurve)(value ?? new AnimationCurve()));
 						else
-							value = EditorGUILayout.CurveField(name, (AnimationCurve)(value ?? new AnimationCurve()));
+							value = EditorGUILayout.CurveField(nameContent, (AnimationCurve)(value ?? new AnimationCurve()));
 						break;
 					case PropertyType.Object:
 						if(rect.HasValue)
-							value = Helper.ObjectField(rect.Value, name, (UnityObject)value, requiredType, true, readOnly);
+							value = Helper.ObjectField(rect.Value, nameContent, (UnityObject)value, requiredType, true, readOnly);
 						else
-							value = Helper.ObjectField(name, (UnityObject)value, requiredType, true, readOnly);
+							value = Helper.ObjectField(nameContent, (UnityObject)value, requiredType, true, readOnly);
 						break;
 					case PropertyType.Array:
 						if(rect.HasValue) {
@@ -529,24 +531,24 @@ namespace ScriptTester {
 							break;
 						}
 						EditorGUILayout.BeginVertical();
-						if(arrayShown = EditorGUILayout.Foldout(arrayShown, name))
+						if(arrayShown = EditorGUILayout.Foldout(arrayShown, nameContent))
 							arrayHandler.DoLayoutList();
 						EditorGUILayout.EndVertical();
 						break;
 					case PropertyType.String:
 						if(rect.HasValue)
-							value = Helper.StringField(rect.Value, name, (string)value, readOnly);
+							value = Helper.StringField(rect.Value, nameContent, (string)value, readOnly);
 						else
-							value = Helper.StringField(name, (string)value, readOnly);
+							value = Helper.StringField(nameContent, (string)value, readOnly);
 						break;
 					default:
 						var stringValue = value != null ? value.ToString() : "Null";
 						if(rect.HasValue) {
-							Helper.StringField(rect.Value, name, stringValue, true);
+							Helper.StringField(rect.Value, nameContent, stringValue, true);
 							DrawUnknownField(readOnly, value);
 						} else {
 							EditorGUILayout.BeginVertical();
-							Helper.StringField(name, stringValue, true);
+							Helper.StringField(nameContent, stringValue, true);
 							DrawUnknownField(readOnly, value);
 							EditorGUILayout.EndVertical();
 						}

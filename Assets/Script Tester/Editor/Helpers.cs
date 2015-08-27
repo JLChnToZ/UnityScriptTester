@@ -191,24 +191,24 @@ namespace ScriptTester {
 			return new Quaternion(cValue.x, cValue.y, cValue.z, cValue.w);
 		}
 		
-		internal static int EnumField(Rect position, string label, Type type, int value) {
-			string[] itemNames;
+		internal static int EnumField(Rect position, GUIContent label, Type type, int value) {
+			GUIContent[] itemNames;
 			int[] itemValues;
 			int val = EnumFieldPreProcess(type, value, out itemNames, out itemValues);
 			int newVal = EditorGUI.Popup(position, label, val, itemNames);
 			return EnumFieldPostProcess(itemValues, newVal);
 		}
 		
-		internal static int EnumField(string label, Type type, int value, params GUILayoutOption[] options) {
-			string[] itemNames;
+		internal static int EnumField(GUIContent label, Type type, int value, params GUILayoutOption[] options) {
+			GUIContent[] itemNames;
 			int[] itemValues;
 			int val = EnumFieldPreProcess(type, value, out itemNames, out itemValues);
 			int newVal = EditorGUILayout.Popup(label, val, itemNames, options);
 			return EnumFieldPostProcess(itemValues, newVal);
 		}
 		
-		static int EnumFieldPreProcess(Type type, int val, out string[] itemNames, out int[] itemValues) {
-			itemNames = Enum.GetNames(type);
+		static int EnumFieldPreProcess(Type type, int val, out GUIContent[] itemNames, out int[] itemValues) {
+			itemNames = Enum.GetNames(type).Select(x => new GUIContent(x)).ToArray();
 			itemValues = Enum.GetValues(type) as int[];
 			for(int i = 0; i < itemValues.Length; i++)
 				if(val == itemValues[i])
@@ -275,7 +275,7 @@ namespace ScriptTester {
 			return val;
 		}
 		
-		internal static string StringField(string label, string value, bool readOnly, params GUILayoutOption[] options) {
+		internal static string StringField(GUIContent label, string value, bool readOnly, params GUILayoutOption[] options) {
 			int length = value == null ? 0 : value.Length;
 			if(length > 5000) {
 				EditorGUILayout.BeginHorizontal();
@@ -315,7 +315,7 @@ namespace ScriptTester {
 			return value;
 		}
 		
-		internal static string StringField(Rect position, string label, string value, bool readOnly) {
+		internal static string StringField(Rect position, GUIContent label, string value, bool readOnly) {
 			if(readOnly) {
 				EditorGUI.SelectableLabel(position, value);
 			} else {
@@ -329,7 +329,7 @@ namespace ScriptTester {
 			return value;
 		}
 		
-		internal static UnityObject ObjectField(string label, UnityObject value, Type objectType, bool allowScreenObjs, bool readOnly, params GUILayoutOption[] options) {
+		internal static UnityObject ObjectField(GUIContent label, UnityObject value, Type objectType, bool allowScreenObjs, bool readOnly, params GUILayoutOption[] options) {
 			if(!readOnly)
 				return EditorGUILayout.ObjectField(label, value, objectType, allowScreenObjs, options);
 			EditorGUILayout.BeginHorizontal();
@@ -342,10 +342,10 @@ namespace ScriptTester {
 			return value;
 		}
 		
-		internal static UnityObject ObjectField(Rect position, string label, UnityObject value, Type objectType, bool allowScreenObjs, bool readOnly) {
+		internal static UnityObject ObjectField(Rect position, GUIContent label, UnityObject value, Type objectType, bool allowScreenObjs, bool readOnly) {
 			if(!readOnly)
 				return EditorGUI.ObjectField(position, label, value, objectType, allowScreenObjs);
-			EditorGUI.PrefixLabel(ScaleRect(position, widthScale: 0.5F), new GUIContent(label));
+			EditorGUI.PrefixLabel(ScaleRect(position, widthScale: 0.5F), label);
 			if(GUI.Button(ScaleRect(position, 0.5F, widthScale: 0.5F), EditorGUIUtility.ObjectContent(value, objectType), EditorStyles.objectField))
 				ClickObject(value);
 			return value;
