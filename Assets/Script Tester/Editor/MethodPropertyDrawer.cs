@@ -2,6 +2,7 @@
 using UnityEditor;
 using UnityEditorInternal;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -219,18 +220,19 @@ namespace ScriptTester {
 		
 		void InitType() {
 			Helper.InitPropertyTypeMapper();
-			if(requiredType.IsArray) {
+			if(Helper.IsInterface(requiredType, typeof(IList<>))) {
 				castableTypes.Add(PropertyType.Array);
 				currentType = PropertyType.Array;
 				arrayHandler.headerHeight = EditorGUIUtility.singleLineHeight;
-				arrayHandler.elementHeight = EditorGUIUtility.singleLineHeight;
+				arrayHandler.elementHeight = EditorGUIUtility.singleLineHeight + 2;
 				arrayHandler.drawHeaderCallback = r => EditorGUI.LabelField(r, name);
-				arrayHandler.drawElementCallback = (r, i, c, d) => arrayContentDrawer[i].Draw(false, r);
+				arrayHandler.drawElementCallback = (r, i, c, d) => arrayContentDrawer[i].Draw(false, Helper.ScaleRect(r, offsetHeight: -2));
 				arrayHandler.onAddCallback = l => ListAddItem();
 				arrayContentDrawer.Clear();
-				if(rawValue != null)
-					foreach(object item in (Array)rawValue)
-						ListAddItem(item);
+                var enumerable = rawValue as IEnumerable;
+				if(enumerable != null)
+                    foreach(object item in enumerable)
+                        ListAddItem(item);
 				return;
 			}
 			if(requiredType.IsByRef)

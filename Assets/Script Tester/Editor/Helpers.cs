@@ -80,7 +80,7 @@ namespace ScriptTester {
 			propertyTypeMapper.Add(typeof(Bounds), PropertyType.Bounds);
 			propertyTypeMapper.Add(typeof(AnimationCurve), PropertyType.Curve);
 			propertyTypeMapper.Add(typeof(UnityObject), PropertyType.Object);
-			propertyTypeMapper.Add(typeof(Array), PropertyType.Array);
+			propertyTypeMapper.Add(typeof(IList<>), PropertyType.Array);
 		}
 		
 		static readonly Hashtable storedState = new Hashtable();
@@ -437,6 +437,13 @@ namespace ScriptTester {
 				return obj.GetHashCode();
 			return 0;
 		}
+
+        internal static bool IsInterface(Type type, Type interfaceType) {
+            foreach(var iType in type.GetInterfaces())
+                if(iType == interfaceType || (iType.IsGenericType && iType.GetGenericTypeDefinition() == interfaceType))
+                    return true;
+            return false;
+        }
 		
 		internal static GUIStyle GetGUIStyle(string styleName) {
 			return GUI.skin.FindStyle(styleName) ?? EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).FindStyle(styleName);
