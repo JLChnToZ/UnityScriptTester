@@ -8,11 +8,10 @@ using ScriptTester;
 using UnityObject = UnityEngine.Object;
 
 namespace ScriptTester {
-	class InspectorPlus : EditorWindow {
+	class InspectorPlus : EditorWindow, IHasCustomMenu {
 		readonly List<InspectorDrawer[]> drawers = new List<InspectorDrawer[]>();
 		string searchText;
 		Vector2 scrollPos;
-		Rect toolbarMenuPos;
 		bool autoUpdateValues = EditorPrefs.GetBool("inspectorplus_autoupdate", true);
 		bool privateFields = EditorPrefs.GetBool("inspectorplus_private", true);
 		bool forceUpdateProps = EditorPrefs.GetBool("inspectorplus_editupdate", false);
@@ -37,10 +36,6 @@ namespace ScriptTester {
 		
 		void OnGUI() {
 			GUILayout.BeginHorizontal(EditorStyles.toolbar);
-			if(GUILayout.Button("Menu", EditorStyles.toolbarButton, GUILayout.ExpandWidth(false)))
-				ShowMenu();
-			if(Event.current.type == EventType.Repaint)
-				toolbarMenuPos = GUILayoutUtility.GetLastRect();
 			GUI.changed = false;
 			GUILayout.Space(8);
 			searchText = EditorGUILayout.TextField(searchText, Helper.GetGUIStyle("ToolbarSeachTextField"));
@@ -72,22 +67,23 @@ namespace ScriptTester {
 			if(!autoUpdateValues || EditorGUIUtility.editingTextField)
 				return;
 			UpdateValues();
-		}
-		
-		void ShowMenu() {
-			var menu = new GenericMenu();
+        }
+
+        void ShowButton(Rect rect) {
+            GUI.Toggle(rect, locked, GUIContent.none, Helper.GetGUIStyle("IN LockButton"));
+            if(GUI.changed)
+                TriggerLock();
+            GUI.changed = false;
+        }
+
+        public void AddItemsToMenu(GenericMenu menu) {
 			menu.AddItem(new GUIContent("Refresh"), false, RefreshList);
 			if(autoUpdateValues)
 				menu.AddDisabledItem(new GUIContent("Update Values", "Auto Updating"));
 			else
 				menu.AddItem(new GUIContent("Update Values"), false, UpdateValues);
 			menu.AddSeparator("");
-			menu.AddItem(new GUIContent("Lock Selection"), locked, () => {
-				locked = !locked;
-				if(!locked)
-					OnSelectionChange();
-				EditorPrefs.SetBool("inspectorplus_lock", locked);
-			});
+			menu.AddItem(new GUIContent("Lock Selection"), locked, TriggerLock);
 			menu.AddItem(new GUIContent("Auto Update Values"), autoUpdateValues, () => {
 				autoUpdateValues = !autoUpdateValues;
 				EditorPrefs.SetBool("inspectorplus_autoupdate", autoUpdateValues);
@@ -120,13 +116,19 @@ namespace ScriptTester {
 				IterateDrawers<IReflectorDrawer>(methodDrawer => methodDrawer.AllowObsolete = showObsolete);
 				EditorPrefs.SetBool("inspectorplus_obsolete", showObsolete);
 			});
-			menu.DropDown(toolbarMenuPos);
 		}
 		
 		void RefreshList() {
 			drawers.Clear();
 			OnSelectionChange();
 		}
+
+        void TriggerLock() {
+            locked = !locked;
+            if(!locked)
+                OnSelectionChange();
+            EditorPrefs.SetBool("inspectorplus_lock", locked);
+        }
 		
 		void OnSelectionChange() {
 			if(!locked)
@@ -186,5 +188,5 @@ namespace ScriptTester {
 				drawerGroup.UpdateValues(updateProps);
 			Repaint();
 		}
-	}
+    }
 }

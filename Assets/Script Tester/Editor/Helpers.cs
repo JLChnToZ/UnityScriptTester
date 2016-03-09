@@ -279,7 +279,7 @@ namespace ScriptTester {
 			int length = value == null ? 0 : value.Length;
 			if(length > 5000) {
 				EditorGUILayout.BeginHorizontal();
-				EditorGUILayout.LabelField(label, "Text too long to display (" + length + " characters)");
+				EditorGUILayout.LabelField(label, new GUIContent("Text too long to display (" + length + " characters)"));
 				if(GUILayout.Button("Copy", GUILayout.ExpandWidth(false))) 
 					EditorGUIUtility.systemCopyBuffer = value;
 				if(!readOnly && GUILayout.Button("Paste", GUILayout.ExpandWidth(false))) {
