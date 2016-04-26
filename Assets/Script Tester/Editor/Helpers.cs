@@ -453,10 +453,5 @@ namespace ScriptTester {
 		public static void ShowInspectorPlus() {
 			EditorWindow.GetWindow(typeof(InspectorPlus));
 		}
-		
-		[MenuItem("Window/Script Tester/Method Caller")]
-		public static void ShowMethodCaller() {
-			EditorWindow.GetWindow(typeof(TestingScript));
-		}
 	}
 }
