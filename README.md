@@ -11,10 +11,12 @@ This is an inspector-like panel looks like the built in inspector in Unity, but 
 
 To call this panel out, you can simply select *Windows > Script Tester > Inspector+*.
 
-### Test Method Caller
-This is a simple tool I have created before the Inspector+, it has the same functionality as the method calling feature in Inspector+, but you can use this to call the methods sequentially by the order you make.
+### ~~Test Method Caller~~
+~~This is a simple tool I have created before the Inspector+, it has the same functionality as the method calling feature in Inspector+, but you can use this to call the methods sequentially by the order you make.~~
 
-To call this panel out, you can simply select *Windows > Script Tester > Method Caller*.
+~~To call this panel out, you can simply select *Windows > Script Tester > Method Caller*.~~
+
+Test Method Caller is obsoleted and has been removed, as the functions can be find in Inspector+.
 
 Warning
 -------
