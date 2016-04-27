@@ -535,7 +535,7 @@ namespace ScriptTester {
                         var stringValue = value != null ? value.ToString() : "Null";
                         if(rect.HasValue) {
                             Helper.StringField(Helper.ScaleRect(rect.Value, 0, 0, 1, 1, 0, 0, -36), nameContent, stringValue, true);
-                            DrawUnknownField(readOnly, value, Helper.ScaleRect(rect.Value, 1, 0, 1, 1, -34, 0, 32));
+                            DrawUnknownField(readOnly, value, Helper.ScaleRect(rect.Value, 1, 0, 0, 1, -34, 0, 32));
                         } else {
                             Helper.StringField(nameContent, stringValue, true);
                             DrawUnknownField(readOnly, value);
