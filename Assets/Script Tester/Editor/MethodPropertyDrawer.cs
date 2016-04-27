@@ -232,6 +232,7 @@ namespace ScriptTester {
                 castableTypes.Add(PropertyType.Enum);
                 castableTypes.Add(PropertyType.Integer);
                 currentType = PropertyType.Enum;
+                masked = Attribute.IsDefined(requiredType, typeof(FlagsAttribute));
                 return;
             }
             if(requiredType == typeof(object)) {
@@ -420,7 +421,7 @@ namespace ScriptTester {
                             value = EditorGUILayout.Toggle(nameContent, (bool)(value ?? false));
                         break;
                     case PropertyType.Enum:
-                        if(masked || readOnly) {
+                        if(masked) {
                             if(rect.HasValue)
                                 value = Helper.MaskedEnumField(rect.Value, nameContent, requiredType, value);
                             else
