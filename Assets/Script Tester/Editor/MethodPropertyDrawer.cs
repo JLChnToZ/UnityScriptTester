@@ -422,15 +422,15 @@ namespace ScriptTester {
                     case PropertyType.Enum:
                         if(masked || readOnly) {
                             if(rect.HasValue)
-                                value = Helper.MaskedEnumField(rect.Value, nameContent, requiredType, (int)(value ?? 0));
+                                value = Helper.MaskedEnumField(rect.Value, nameContent, requiredType, value);
                             else
-                                value = Helper.MaskedEnumField(nameContent, requiredType, (int)(value ?? 0));
+                                value = Helper.MaskedEnumField(nameContent, requiredType, value);
                             break;
                         }
                         if(rect.HasValue)
-                            value = Helper.EnumField(rect.Value, nameContent, requiredType, (int)(value ?? 0));
+                            value = Helper.EnumField(rect.Value, nameContent, requiredType, value);
                         else
-                            value = Helper.EnumField(nameContent, requiredType, (int)(value ?? 0));
+                            value = Helper.EnumField(nameContent, requiredType, value);
                         break;
                     case PropertyType.Long:
 #if UNITY_5
