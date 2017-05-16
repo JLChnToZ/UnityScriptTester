@@ -19,13 +19,14 @@ namespace ScriptTester {
         readonly List<InspectorDrawer[]> drawers = new List<InspectorDrawer[]>();
         string searchText;
         Vector2 scrollPos;
-        bool autoUpdateValues = EditorPrefs.GetBool("inspectorplus_autoupdate", true);
-        bool privateFields = EditorPrefs.GetBool("inspectorplus_private", true);
-        bool forceUpdateProps = EditorPrefs.GetBool("inspectorplus_editupdate", false);
-        bool showProps = EditorPrefs.GetBool("inspectorplus_props", true);
-        bool showMethods = EditorPrefs.GetBool("inspectorplus_methods", true);
-        bool locked = EditorPrefs.GetBool("inspectorplus_lock", false);
-        bool showObsolete = EditorPrefs.GetBool("inspectorplus_obsolete", false);
+        bool initialized;
+        bool autoUpdateValues;
+        bool privateFields;
+        bool forceUpdateProps;
+        bool showProps;
+        bool showMethods;
+        bool locked;
+        bool showObsolete;
         int[] instanceIds = new int[0];
 
         void OnEnable() {
@@ -34,7 +35,20 @@ namespace ScriptTester {
 #else
             titleContent = new GUIContent("Inspector+", EditorGUIUtility.FindTexture("UnityEditor.InspectorWindow"));
 #endif
+            Initialize();
             OnFocus();
+        }
+
+        void Initialize() {
+            if(initialized) return;
+            autoUpdateValues = EditorPrefs.GetBool("inspectorplus_autoupdate", true);
+            privateFields = EditorPrefs.GetBool("inspectorplus_private", true);
+            forceUpdateProps = EditorPrefs.GetBool("inspectorplus_editupdate", false);
+            showProps = EditorPrefs.GetBool("inspectorplus_props", true);
+            showMethods = EditorPrefs.GetBool("inspectorplus_methods", true);
+            locked = EditorPrefs.GetBool("inspectorplus_lock", false);
+            showObsolete = EditorPrefs.GetBool("inspectorplus_obsolete", false);
+            initialized = true;
         }
 
         void OnFocus() {
