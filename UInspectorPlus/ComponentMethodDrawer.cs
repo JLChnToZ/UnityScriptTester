@@ -274,7 +274,7 @@ namespace UInspectorPlus {
             parameters = new MethodPropertyDrawer[parameterInfo.Length];
             for(int i = 0; i < parameterInfo.Length; i++) {
                 var info = parameterInfo[i];
-                parameters[i] = new MethodPropertyDrawer(info.ParameterType, info.Name, info.IsOptional ? info.DefaultValue : null, privateFields, obsolete);
+                parameters[i] = new MethodPropertyDrawer(info, privateFields, obsolete);
                 parameters[i].OnRequireRedraw += RequireRedraw;
             }
             result = null;

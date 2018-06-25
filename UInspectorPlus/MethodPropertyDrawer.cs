@@ -38,6 +38,8 @@ namespace UInspectorPlus {
         bool updatable;
         bool arrayShown;
         bool isInfoReadonly;
+        bool isStatic;
+        bool isPrivate;
         public event Action OnRequireRedraw;
 
         Exception getException;
@@ -191,11 +193,7 @@ namespace UInspectorPlus {
             }
         }
 
-        public MethodPropertyDrawer(Type type, string name, object defaultValue, bool allowPrivate, bool allowObsolete, string tooltipValue = null) {
-            this.requiredType = type;
-            this.name = name;
-            this.nameContent = new GUIContent(name, tooltipValue ?? name);
-            this.rawValue = defaultValue;
+        private MethodPropertyDrawer(bool allowPrivate, bool allowObsolete) {
             this.castableTypes = new List<PropertyType>();
             this.fields = new List<ComponentFields>();
             this.selectedFieldIndex = -1;
@@ -203,6 +201,46 @@ namespace UInspectorPlus {
             this.arrayHandler = new ReorderableList(arrayContentDrawer, typeof(MethodPropertyDrawer));
             this.privateFields = allowPrivate;
             this.obsolete = allowObsolete;
+        }
+
+        public MethodPropertyDrawer(FieldInfo field, object target, bool allowPrivate, bool allowObsolete)
+            : this(allowPrivate, allowObsolete) {
+            this.requiredType = field.FieldType;
+            this.name = Helper.GetMemberName(field, true);
+            this.nameContent = new GUIContent(name, Helper.GetMemberName(field));
+            this.rawValue = field.GetValue(target);
+            this.isStatic = field.IsStatic;
+            this.isPrivate = field.IsPrivate;
+            InitType();
+        }
+
+        public MethodPropertyDrawer(PropertyInfo property, object target, bool allowPrivate, bool allowObsolete, bool initValue)
+            : this(allowPrivate, allowObsolete) {
+            this.requiredType = property.PropertyType;
+            this.name = Helper.GetMemberName(property, true);
+            this.nameContent = new GUIContent(name, Helper.GetMemberName(property));
+            if(initValue) this.rawValue = property.GetValue(target, null);
+            var getMethod = property.GetGetMethod();
+            this.isStatic = getMethod != null ? getMethod.IsStatic : false;
+            this.isPrivate = getMethod != null ? getMethod.IsPrivate : false;
+            InitType();
+        }
+
+        public MethodPropertyDrawer(ParameterInfo parameter, bool allowPrivate, bool allowObsolete)
+            : this(allowPrivate, allowObsolete) {
+            this.requiredType = parameter.ParameterType;
+            this.name = parameter.Name;
+            this.nameContent = new GUIContent(this.name, this.name);
+            if (parameter.IsOptional) this.rawValue = parameter.DefaultValue;
+            InitType();
+        }
+
+        public MethodPropertyDrawer(Type type, string name, object defaultValue, bool allowPrivate, bool allowObsolete)
+            : this(allowPrivate, allowObsolete) {
+            this.requiredType = type;
+            this.name = name;
+            this.nameContent = new GUIContent(name, name);
+            this.rawValue = defaultValue;
             InitType();
         }
 
@@ -414,6 +452,12 @@ namespace UInspectorPlus {
 
         void DrawDirectField(bool readOnly, Rect? rect) {
             object value = rawValue;
+            Color color = GUI.color;
+            FontStyle fontStyle = EditorStyles.label.fontStyle;
+            if (isPrivate)
+                GUI.color = new Color(color.r, color.g, color.b, color.a * 0.5F);
+            if (isStatic)
+                EditorStyles.label.fontStyle |= FontStyle.Italic;
             GUI.changed = false;
             try {
                 switch (currentType) {
@@ -569,6 +613,8 @@ namespace UInspectorPlus {
                 changed |= GUI.changed;
                 rawValue = value;
             }
+            GUI.color = color;
+            EditorStyles.label.fontStyle = fontStyle;
         }
 
         void DrawUnknownField(bool readOnly, object target, Rect? position = null) {

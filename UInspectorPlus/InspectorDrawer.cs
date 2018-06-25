@@ -30,7 +30,7 @@ namespace UInspectorPlus {
                 try {
                     if (!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
                         continue;
-                    drawer.Add(new MethodPropertyDrawer(field.FieldType, Helper.GetMemberName(field, true), field.GetValue(target), showPrivateFields, showObsolete, Helper.GetMemberName(field)) {
+                    drawer.Add(new MethodPropertyDrawer(field, target, showPrivateFields, showObsolete) {
                         AllowReferenceMode = false,
                         Info = field
                     });
@@ -51,7 +51,7 @@ namespace UInspectorPlus {
                             continue;
                         if (!showObsolete && Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
                             continue;
-                        drawer.Add(new MethodPropertyDrawer(prop.PropertyType, Helper.GetMemberName(prop, true), prop.CanRead && EditorApplication.isPlaying ? prop.GetValue(target, null) : null, showPrivateFields, showObsolete, Helper.GetMemberName(prop)) {
+                        drawer.Add(new MethodPropertyDrawer(prop, target, showPrivateFields, showObsolete, prop.CanRead && EditorApplication.isPlaying) {
                             AllowReferenceMode = false,
                             Info = prop,
                             Updatable = isInternalType || Helper.GetState(prop, false),
