@@ -210,15 +210,23 @@ namespace UInspectorPlus {
         }
 
         internal static Quaternion QuaternionField(string label, Quaternion value, params GUILayoutOption[] options) {
-            var cValue = new Vector4(value.x, value.y, value.z, value.w);
-            cValue = EditorGUILayout.Vector4Field(label, cValue, options);
-            return new Quaternion(cValue.x, cValue.y, cValue.z, cValue.w);
+            var cValue = value.eulerAngles;
+            var changed = GUI.changed;
+            GUI.changed = false;
+            cValue = EditorGUILayout.Vector3Field(label, cValue, options);
+            if (GUI.changed) return Quaternion.Euler(cValue);
+            GUI.changed = changed;
+            return value;
         }
 
         internal static Quaternion QuaternionField(Rect position, string label, Quaternion value) {
-            var cValue = new Vector4(value.x, value.y, value.z, value.w);
-            cValue = EditorGUI.Vector4Field(position, label, cValue);
-            return new Quaternion(cValue.x, cValue.y, cValue.z, cValue.w);
+            var cValue = value.eulerAngles;
+            var changed = GUI.changed;
+            GUI.changed = false;
+            cValue = EditorGUI.Vector3Field(position, label, cValue);
+            if (GUI.changed) return Quaternion.Euler(cValue);
+            GUI.changed = changed;
+            return value;
         }
 
         internal static object EnumField(Rect position, GUIContent label, Type type, object value) {
