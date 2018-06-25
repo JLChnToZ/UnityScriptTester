@@ -3,18 +3,13 @@ using UnityEditor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using ScriptTester;
 using UnityObject = UnityEngine.Object;
 
-namespace ScriptTester {
+namespace UInspectorPlus {
     class InspectorPlus: EditorWindow, IHasCustomMenu {
-        const string description = "The main purpose of this panel is provide a general way " +
-            "to debugging and testing the game objects and scripts, " +
-            "it has power to access everything exists in the game and editor, " +
-            "even they are invisible to the global, " +
-            "thus improper use may cause the game or the editor crash in some cases. " +
-            "Use this at your own risk.";
+        const string description = "CAUTION: USE THIS PLUGIN AT YOUR OWN RISK!\n" +
+            "Unless you know exactly what you are doing, do not use this plugin " +
+            "or you may likely to corrupt your project or even crashes the editor!";
 
         readonly List<InspectorDrawer[]> drawers = new List<InspectorDrawer[]>();
         string searchText;
@@ -30,17 +25,13 @@ namespace ScriptTester {
         int[] instanceIds = new int[0];
 
         void OnEnable() {
-#if UNITY_4
-			title = "Inspector+";
-#else
             titleContent = new GUIContent("Inspector+", EditorGUIUtility.FindTexture("UnityEditor.InspectorWindow"));
-#endif
             Initialize();
             OnFocus();
         }
 
         void Initialize() {
-            if(initialized) return;
+            if (initialized) return;
             autoUpdateValues = EditorPrefs.GetBool("inspectorplus_autoupdate", true);
             privateFields = EditorPrefs.GetBool("inspectorplus_private", true);
             forceUpdateProps = EditorPrefs.GetBool("inspectorplus_editupdate", false);
@@ -60,18 +51,18 @@ namespace ScriptTester {
             GUI.changed = false;
             GUILayout.Space(8);
             searchText = EditorGUILayout.TextField(searchText, Helper.GetGUIStyle("ToolbarSeachTextField"));
-            if(GUILayout.Button(GUIContent.none, Helper.GetGUIStyle(string.IsNullOrEmpty(searchText) ? "ToolbarSeachCancelButtonEmpty" : "ToolbarSeachCancelButton"))) {
+            if (GUILayout.Button(GUIContent.none, Helper.GetGUIStyle(string.IsNullOrEmpty(searchText) ? "ToolbarSeachCancelButtonEmpty" : "ToolbarSeachCancelButton"))) {
                 searchText = string.Empty;
                 GUI.FocusControl(null);
             }
-            if(GUI.changed)
+            if (GUI.changed)
                 IterateDrawers<ComponentMethodDrawer>(methodDrawer => methodDrawer.Filter = searchText);
             GUILayout.Space(8);
             GUILayout.EndHorizontal();
             GUI.changed = false;
             scrollPos = GUILayout.BeginScrollView(scrollPos);
-            EditorGUILayout.HelpBox(description, MessageType.Info);
-            foreach(var drawer in drawers.SelectMany(drawer => drawer)) {
+            EditorGUILayout.HelpBox(description, MessageType.Warning);
+            foreach (var drawer in drawers.SelectMany(drawer => drawer)) {
                 drawer.searchText = searchText;
                 drawer.Draw();
             }
@@ -81,21 +72,21 @@ namespace ScriptTester {
         }
 
         void OnInspectorUpdate() {
-            if(!autoUpdateValues || EditorGUIUtility.editingTextField)
+            if (!autoUpdateValues || EditorGUIUtility.editingTextField)
                 return;
             UpdateValues();
         }
 
         void ShowButton(Rect rect) {
             GUI.Toggle(rect, locked, GUIContent.none, Helper.GetGUIStyle("IN LockButton"));
-            if(GUI.changed)
+            if (GUI.changed)
                 TriggerLock();
             GUI.changed = false;
         }
 
-        public void AddItemsToMenu(GenericMenu menu) {
+        void IHasCustomMenu.AddItemsToMenu(GenericMenu menu) {
             menu.AddItem(new GUIContent("Refresh"), false, RefreshList);
-            if(autoUpdateValues)
+            if (autoUpdateValues)
                 menu.AddDisabledItem(new GUIContent("Update Values", "Auto Updating"));
             else
                 menu.AddItem(new GUIContent("Update Values"), false, UpdateValues);
@@ -142,22 +133,22 @@ namespace ScriptTester {
 
         void TriggerLock() {
             locked = !locked;
-            if(!locked)
+            if (!locked)
                 OnSelectionChange();
             EditorPrefs.SetBool("inspectorplus_lock", locked);
         }
 
         void OnSelectionChange() {
-            if(!locked)
+            if (!locked)
                 instanceIds = Selection.instanceIDs;
             var pendingRemoveDrawers = new List<InspectorDrawer[]>();
             var pendingAddDrawers = new List<InspectorDrawer[]>();
-            foreach(var drawer in drawers)
-                if(drawer.Length <= 0 || drawer[0].target == null || !instanceIds.Contains(Helper.ObjIdOrHashCode(drawer[0].target)))
+            foreach (var drawer in drawers)
+                if (drawer.Length <= 0 || drawer[0].target == null || !instanceIds.Contains(Helper.ObjIdOrHashCode(drawer[0].target)))
                     pendingRemoveDrawers.Add(drawer);
             drawers.RemoveAll(pendingRemoveDrawers.Contains);
-            foreach(var instanceID in instanceIds)
-                if(drawers.FindIndex(drawer => Helper.ObjIdOrHashCode(drawer[0].target) == instanceID) < 0)
+            foreach (var instanceID in instanceIds)
+                if (drawers.FindIndex(drawer => Helper.ObjIdOrHashCode(drawer[0].target) == instanceID) < 0)
                     pendingAddDrawers.Add(CreateDrawers(instanceID));
             drawers.AddRange(pendingAddDrawers);
             UpdateValues();
@@ -165,20 +156,20 @@ namespace ScriptTester {
 
         InspectorDrawer[] CreateDrawers(int instanceID) {
             var target = EditorUtility.InstanceIDToObject(instanceID);
-            if(target == null)
+            if (target == null)
                 return new InspectorDrawer[0];
             var ret = new List<InspectorDrawer>();
             try {
                 ret.Add(CreateDrawer(target, true));
-            } catch(Exception ex) {
+            } catch (Exception ex) {
                 Debug.LogException(ex);
             }
             var gameObject = target as GameObject;
-            if(gameObject != null)
-                foreach(var component in gameObject.GetComponents(typeof(Component))) {
+            if (gameObject != null)
+                foreach (var component in gameObject.GetComponents(typeof(Component))) {
                     try {
                         ret.Add(CreateDrawer(component, false));
-                    } catch(Exception ex) {
+                    } catch (Exception ex) {
                         Debug.LogException(ex);
                     }
                 }
@@ -192,7 +183,7 @@ namespace ScriptTester {
         }
 
         void IterateDrawers<T>(Action<T> each) where T : IReflectorDrawer {
-            foreach(var methodDrawer in drawers.SelectMany(drawer => drawer).SelectMany(drawer => drawer.drawer).OfType<T>())
+            foreach (var methodDrawer in drawers.SelectMany(drawer => drawer).SelectMany(drawer => drawer.drawer).OfType<T>())
                 each(methodDrawer);
         }
 
@@ -201,7 +192,7 @@ namespace ScriptTester {
         }
 
         void UpdateValues(bool updateProps) {
-            foreach(var drawerGroup in drawers.SelectMany(drawer => drawer))
+            foreach (var drawerGroup in drawers.SelectMany(drawer => drawer))
                 drawerGroup.UpdateValues(updateProps);
             Repaint();
         }

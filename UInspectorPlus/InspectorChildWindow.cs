@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEditor;
 
-namespace ScriptTester {
+namespace UInspectorPlus {
     class InspectorChildWindow: EditorWindow {
         InspectorDrawer drawer;
         Vector2 scrollPos;
@@ -12,11 +12,7 @@ namespace ScriptTester {
         }
 
         void InternalOpen(object target, bool showProps, bool showPrivate, bool showObsolete, bool showMethods, bool updateProps) {
-#if UNITY_4
-			title = string.Format("{0} - Inspector+", target);
-#else
             titleContent = new GUIContent(string.Format("{0} - Inspector+", target));
-#endif
             drawer = new InspectorDrawer(target, true, showProps, showPrivate, showObsolete, showMethods);
             drawer.OnRequireRedraw += Repaint;
             this.updateProps = updateProps;
@@ -29,7 +25,14 @@ namespace ScriptTester {
             updateProps = GUILayout.Toggle(updateProps, "Update Props", EditorStyles.toolbarButton);
             GUILayout.Space(8);
             drawer.searchText = EditorGUILayout.TextField(drawer.searchText, Helper.GetGUIStyle("ToolbarSeachTextField"));
-            if(GUILayout.Button(GUIContent.none, Helper.GetGUIStyle(string.IsNullOrEmpty(drawer.searchText) ? "ToolbarSeachCancelButtonEmpty" : "ToolbarSeachCancelButton"))) {
+            if (GUILayout.Button(
+                GUIContent.none,
+                Helper.GetGUIStyle(
+                    string.IsNullOrEmpty(drawer.searchText) ?
+                    "ToolbarSeachCancelButtonEmpty" :
+                    "ToolbarSeachCancelButton"
+                )
+            )) {
                 drawer.searchText = string.Empty;
                 GUI.FocusControl(null);
             }
@@ -40,10 +43,11 @@ namespace ScriptTester {
             drawer.Draw(false);
             GUILayout.FlexibleSpace();
             GUILayout.EndScrollView();
+            if (drawer.target == null) Close();
         }
 
         void OnInspectorUpdate() {
-            if(EditorGUIUtility.editingTextField)
+            if (EditorGUIUtility.editingTextField)
                 return;
             UpdateValues();
         }

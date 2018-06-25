@@ -1,15 +1,13 @@
-﻿using System.Text;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
 using UnityEditor.AnimatedValues;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using ScriptTester;
 using UnityObject = UnityEngine.Object;
 
-namespace ScriptTester {
+namespace UInspectorPlus {
     class ComponentMethodDrawer: IReflectorDrawer {
         object component;
         readonly List<ComponentMethod> methods = new List<ComponentMethod>();
