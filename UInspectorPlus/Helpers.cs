@@ -33,10 +33,16 @@ namespace UInspectorPlus {
         Vector3Int,
         RectInt,
     }
+    
+    enum MethodMode {
+        Method,
+        Constructor,
+        Indexer
+    }
 
     struct ComponentMethod {
-        public ConstructorInfo ctorInfo;
-        public MethodInfo method;
+        public MethodMode mode;
+        public MemberInfo member;
         public object target;
     }
 
