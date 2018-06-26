@@ -1,6 +1,8 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using UnityEditorInternal;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
@@ -15,7 +17,10 @@ namespace UInspectorPlus {
         public bool changed;
         public string searchText;
         public event Action OnRequireRedraw;
-        Type targetType;
+        Type targetType, elementType;
+        HexEdit hexEdit;
+        List<MethodPropertyDrawer> arrayContentDrawer;
+        ReorderableList arrayHandler;
 
         public InspectorDrawer(object target, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
             this.target = target;
@@ -24,6 +29,7 @@ namespace UInspectorPlus {
             if (showPrivateFields)
                 flag |= BindingFlags.NonPublic;
             targetType = target.GetType();
+            elementType = Helper.GetGenericListType(targetType);
             var fields = targetType.GetFields(flag);
             var props = !showProps ? null : targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray();
             isInternalType = !(target is MonoBehaviour) || Attribute.IsDefined(target.GetType(), typeof(ExecuteInEditMode));
@@ -68,7 +74,7 @@ namespace UInspectorPlus {
         }
 
         public void Draw(bool drawHeader = true, bool readOnly = false) {
-            if(target == null) {
+            if (target == null) {
                 EditorGUILayout.InspectorTitlebar(false, null as UnityObject);
                 return;
             }
@@ -80,6 +86,44 @@ namespace UInspectorPlus {
             }
             EditorGUI.indentLevel++;
             EditorGUILayout.BeginVertical();
+            if (elementType != null) {
+                if (targetType == typeof(byte[])) {
+                    if (hexEdit == null)
+                        hexEdit = new HexEdit();
+                    hexEdit.data = target as byte[];
+                    if (hexEdit.data != null)
+                        hexEdit.DrawGUI(false, GUILayout.MinHeight(EditorGUIUtility.singleLineHeight), GUILayout.ExpandHeight(true));
+                } else {
+                    if (arrayHandler == null) {
+                        if (arrayContentDrawer == null) {
+                            arrayContentDrawer = new List<MethodPropertyDrawer>();
+                            for (int i = 0; i < (target as IList).Count; i++)
+                                ListAddItem();
+                        }
+                        arrayHandler = new ReorderableList(target as IList, elementType);
+                        arrayHandler.headerHeight = EditorGUIUtility.singleLineHeight;
+                        arrayHandler.elementHeight = EditorGUIUtility.singleLineHeight + 2;
+                        arrayHandler.drawElementCallback = (r, i, c, d) => {
+                            arrayContentDrawer[i].Value = (target as IList)[i];
+                            arrayContentDrawer[i].Draw(false, Helper.ScaleRect(r, offsetHeight: -2));
+                            if (arrayContentDrawer[i].Changed)
+                                (target as IList)[i] = arrayContentDrawer[i].Value;
+                        };
+                        arrayHandler.drawHeaderCallback = r => GUI.Label(r, target.ToString(), EditorStyles.boldLabel);
+                        arrayHandler.onCanAddCallback = l => target != null && !(target as IList).IsFixedSize;
+                        arrayHandler.onCanRemoveCallback = arrayHandler.onCanAddCallback.Invoke;
+                        arrayHandler.onAddCallback = l => {
+                            ReorderableList.defaultBehaviours.DoAddButton(l);
+                            ListAddItem();
+                        };
+                        arrayHandler.onRemoveCallback = l => {
+                            ReorderableList.defaultBehaviours.DoRemoveButton(l);
+                            arrayContentDrawer.RemoveAt(0);
+                        };
+                    }
+                    arrayHandler.DoLayoutList();
+                }
+            }
             foreach (var item in drawer) {
                 var methodDrawer = item as ComponentMethodDrawer;
                 var fieldDrawer = item as MethodPropertyDrawer;
@@ -122,6 +166,12 @@ namespace UInspectorPlus {
             }
             EditorGUILayout.EndVertical();
             EditorGUI.indentLevel--;
+        }
+
+        void ListAddItem(object value = null) {
+            var drawer = new MethodPropertyDrawer(elementType, "", value, true, false);
+            drawer.OnRequireRedraw += RequireRedraw;
+            arrayContentDrawer.Add(drawer);
         }
 
         public void UpdateValues(bool updateProps) {

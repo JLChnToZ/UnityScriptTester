@@ -114,7 +114,6 @@ namespace UInspectorPlus {
                     InitFieldTypes();
                 } else {
                     rawValue = GetReferencedValue();
-                    // SetArray();
                 }
                 selectedFieldIndex = -1;
                 selectedField = null;
@@ -157,13 +156,6 @@ namespace UInspectorPlus {
             get {
                 if (referenceMode) {
                     rawValue = GetReferencedValue();
-                /*
-                } else if (currentType == PropertyType.Array) {
-                    var array = Array.CreateInstance(requiredType.GetElementType(), arrayContentDrawer.Count);
-                    for (int i = 0; i < arrayContentDrawer.Count; i++)
-                        array.SetValue(arrayContentDrawer[i].Value, i);
-                    rawValue = array;
-                */
                 }
                 var convertedValue = rawValue;
                 if (rawValue != null && requiredType != typeof(object) && requiredType.IsInstanceOfType(rawValue)) {
@@ -179,7 +171,6 @@ namespace UInspectorPlus {
             set {
                 rawValue = value;
                 changed = false;
-                // SetArray();
             }
         }
 

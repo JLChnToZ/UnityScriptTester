@@ -487,6 +487,19 @@ namespace UInspectorPlus {
                     return true;
             return false;
         }
+        
+        internal static Type GetGenericListType(Type targetType) {
+            if (targetType.IsArray)
+                return targetType.GetElementType();
+            bool hasNonGeneric = false;
+            foreach (Type type in targetType.GetInterfaces()) {
+                if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IList<>))
+                    return type.GetGenericArguments()[0];
+                if (type == typeof(IList))
+                    hasNonGeneric = true;
+            }
+            return hasNonGeneric ? typeof(object) : null;
+        }
 
         internal static GUIStyle GetGUIStyle(string styleName) {
             return GUI.skin.FindStyle(styleName) ?? EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).FindStyle(styleName);

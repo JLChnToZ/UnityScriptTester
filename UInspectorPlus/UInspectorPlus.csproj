@@ -46,6 +46,7 @@
   <ItemGroup>
     <Compile Include="ComponentMethodDrawer.cs" />
     <Compile Include="Helpers.cs" />
+    <Compile Include="HexEdit.cs" />
     <Compile Include="InspectorChildWindow.cs" />
     <Compile Include="InspectorDrawer.cs" />
     <Compile Include="InspectorPlus.cs" />
