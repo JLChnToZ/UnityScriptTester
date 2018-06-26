@@ -21,6 +21,7 @@ namespace UInspectorPlus {
         HexEdit hexEdit;
         List<MethodPropertyDrawer> arrayContentDrawer;
         ReorderableList arrayHandler;
+        bool showListEdit;
 
         public InspectorDrawer(object target, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
             this.target = target;
@@ -92,8 +93,8 @@ namespace UInspectorPlus {
                         hexEdit = new HexEdit();
                     hexEdit.data = target as byte[];
                     if (hexEdit.data != null)
-                        hexEdit.DrawGUI(false, GUILayout.MinHeight(EditorGUIUtility.singleLineHeight), GUILayout.ExpandHeight(true));
-                } else {
+                        hexEdit.DrawGUI(false, GUILayout.MinHeight(EditorGUIUtility.singleLineHeight * 3), GUILayout.ExpandHeight(true));
+                } else if (showListEdit = EditorGUILayout.Foldout(showListEdit, string.Format("Edit List [{0} Items]", (target as IList).Count))) {
                     if (arrayHandler == null) {
                         if (arrayContentDrawer == null) {
                             arrayContentDrawer = new List<MethodPropertyDrawer>();
