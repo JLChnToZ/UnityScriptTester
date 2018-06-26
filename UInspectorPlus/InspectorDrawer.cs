@@ -12,6 +12,7 @@ namespace UInspectorPlus {
         public List<IReflectorDrawer> drawer;
         public bool shown;
         public bool isInternalType;
+        public bool changed;
         public string searchText;
         public event Action OnRequireRedraw;
         Type targetType;
@@ -31,8 +32,7 @@ namespace UInspectorPlus {
                     if (!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
                         continue;
                     drawer.Add(new MethodPropertyDrawer(field, target, showPrivateFields, showObsolete) {
-                        AllowReferenceMode = false,
-                        Info = field
+                        AllowReferenceMode = false
                     });
                 } catch (Exception ex) {
                     Debug.LogException(ex);
@@ -53,7 +53,6 @@ namespace UInspectorPlus {
                             continue;
                         drawer.Add(new MethodPropertyDrawer(prop, target, showPrivateFields, showObsolete, prop.CanRead && EditorApplication.isPlaying) {
                             AllowReferenceMode = false,
-                            Info = prop,
                             Updatable = isInternalType || Helper.GetState(prop, false),
                             ShowUpdatable = !isInternalType
                         });
@@ -115,6 +114,8 @@ namespace UInspectorPlus {
                                 } else
                                     propDrawer.GetException = value as Exception;
                             }
+                        } else {
+                            changed = true;
                         }
                     }
                 }

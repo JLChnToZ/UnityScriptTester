@@ -256,7 +256,7 @@ namespace UInspectorPlus {
                 method = m.method;
                 name = Helper.GetMemberName(method as MemberInfo).Replace('_', ' ');
             }
-            var result = string.Format("{0:000} {1} ({2})", i + 1, name, Helper.JoinStringList(null, method.GetParameters().Select(x => x.ParameterType.Name), ", "));
+            var result = string.Format("{0} ({1})", name, Helper.JoinStringList(null, method.GetParameters().Select(x => x.ParameterType.Name), ", "));
             return result;
         }
 
