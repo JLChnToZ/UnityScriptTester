@@ -586,6 +586,12 @@ namespace UInspectorPlus {
                         else
                             value = EditorGUILayout.BoundsField(nameContent, Helper.GetOrDefault<Bounds>(value));
                         break;
+                    case PropertyType.Gradient:
+                        if (rect.HasValue)
+                            value = Helper.GradientField(rect.Value, nameContent, Helper.GetOrDefault<Gradient>(value));
+                        else
+                            value = Helper.GradientField(nameContent, Helper.GetOrDefault<Gradient>(value));
+                        break;
                     case PropertyType.Curve:
                         if (rect.HasValue)
                             value = EditorGUI.CurveField(rect.Value, nameContent, value as AnimationCurve ?? new AnimationCurve());

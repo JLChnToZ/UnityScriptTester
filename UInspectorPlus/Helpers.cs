@@ -24,6 +24,7 @@ namespace UInspectorPlus {
         Color,
         Rect,
         Bounds,
+        Gradient,
         Curve,
         String,
         Object,
@@ -68,6 +69,29 @@ namespace UInspectorPlus {
         internal static readonly Dictionary<Type, PropertyType> propertyTypeMapper = new Dictionary<Type, PropertyType>();
         internal static readonly Dictionary<Type, HashSet<string>> blackListedTypes = new Dictionary<Type, HashSet<string>>();
         static double clickTime;
+        
+        // Delegate hacks to access the internal methods
+        internal static readonly Func<GUIContent, Rect, Gradient, Gradient> doGradientField = Delegate.CreateDelegate(
+            typeof(Func<GUIContent, Rect, Gradient, Gradient>),
+            typeof(EditorGUI).GetMethod(
+                "GradientField",
+                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static,
+                null, CallingConventions.Any,
+                new[] { typeof(GUIContent), typeof(Rect), typeof(Gradient) },
+                null
+            )
+        ) as Func<GUIContent, Rect, Gradient, Gradient>;
+
+        internal static readonly Func<GUIContent, Gradient, GUILayoutOption[], Gradient> doLayoutGradiantField = Delegate.CreateDelegate(
+            typeof(Func<GUIContent, Gradient, GUILayoutOption[], Gradient>),
+            typeof(EditorGUILayout).GetMethod(
+                "GradientField",
+                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static,
+                null, CallingConventions.Any,
+                new[] { typeof(GUIContent), typeof(Gradient), typeof(GUILayoutOption[]) },
+                null
+            )
+        ) as Func<GUIContent, Gradient, GUILayoutOption[], Gradient>;
 
         internal static void InitPropertyTypeMapper() {
             if (propertyTypeMapper.Count > 0)
@@ -91,6 +115,7 @@ namespace UInspectorPlus {
             AddPropertyTypeMap("UnityEngine.Color, UnityEngine.dll", PropertyType.Color);
             AddPropertyTypeMap("UnityEngine.Rect, UnityEngine.dll", PropertyType.Rect);
             AddPropertyTypeMap("UnityEngine.Bounds, UnityEngine.dll", PropertyType.Bounds);
+            AddPropertyTypeMap("UnityEngine.Gradient, UnityEngine.dll", PropertyType.Gradient);
             AddPropertyTypeMap("UnityEngine.AnimationCurve, UnityEngine.dll", PropertyType.Curve);
             AddPropertyTypeMap("UnityEngine.Object, UnityEngine.dll", PropertyType.Object);
             AddPropertyTypeMap("System.Collections.Generic.IList`1", PropertyType.Array);
@@ -401,6 +426,14 @@ namespace UInspectorPlus {
             if (GUI.Button(ScaleRect(position, 0.5F, widthScale: 0.5F), EditorGUIUtility.ObjectContent(value, objectType), EditorStyles.objectField))
                 ClickObject(value);
             return value;
+        }
+
+        internal static Gradient GradientField(Rect position, GUIContent label, Gradient value) {
+            return doGradientField.Invoke(label, position, value);
+        }
+
+        internal static Gradient GradientField(GUIContent label, Gradient value, params GUILayoutOption[] options) {
+            return doLayoutGradiantField.Invoke(label, value, options);
         }
 
         static void ClickObject(UnityObject obj) {
