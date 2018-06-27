@@ -33,7 +33,7 @@ namespace UInspectorPlus {
         Vector3Int,
         RectInt,
     }
-    
+
     enum MethodMode {
         Method,
         Constructor,
@@ -54,6 +54,8 @@ namespace UInspectorPlus {
 
     interface IReflectorDrawer {
         void Draw();
+        bool UpdateIfChanged();
+        bool UpdateValue();
         bool AllowPrivateFields { get; set; }
         bool AllowObsolete { get; set; }
         bool Changed { get; }
@@ -153,7 +155,7 @@ namespace UInspectorPlus {
             );
         }
 
-        internal static string GetMemberName(MemberInfo member, bool simplifed = false) {
+        internal static string GetMemberName(MemberInfo member, bool simplifed = false, bool appendMemberName = true) {
             var ret = new StringBuilder();
             var props = new List<string>();
             var field = member as FieldInfo;
@@ -198,7 +200,8 @@ namespace UInspectorPlus {
             JoinStringList(ret, props, simplifed ? "" : ", ");
             if (props.Count > 0)
                 ret.Append(") ");
-            ret.Append(member.Name);
+            if (appendMemberName)
+                ret.Append(member.Name);
             return ret.ToString();
         }
 
@@ -434,14 +437,14 @@ namespace UInspectorPlus {
             return Math.Max(1, count);
         }
 
-        internal static bool AssignValue(MemberInfo info, object target, object value) {
+        internal static bool AssignValue(MemberInfo info, object target, object value, params object[] index) {
             try {
                 var fieldInfo = info as FieldInfo;
                 var propertyInfo = info as PropertyInfo;
                 if (fieldInfo != null && !fieldInfo.IsInitOnly && !fieldInfo.IsLiteral)
                     fieldInfo.SetValue(target, value);
                 else if (propertyInfo != null && propertyInfo.CanWrite)
-                    propertyInfo.SetValue(target, value, null);
+                    propertyInfo.SetValue(target, value, index);
                 else
                     return false;
             } catch {
@@ -460,7 +463,7 @@ namespace UInspectorPlus {
             return false;
         }
 
-        internal static bool FetchValue(MemberInfo info, object target, out object value) {
+        internal static bool FetchValue(MemberInfo info, object target, out object value, params object[] index) {
             value = null;
             try {
                 var fieldInfo = info as FieldInfo;
@@ -468,7 +471,7 @@ namespace UInspectorPlus {
                 if (fieldInfo != null)
                     value = fieldInfo.GetValue(target);
                 else if (propertyInfo != null && propertyInfo.CanRead)
-                    value = propertyInfo.GetValue(target, null);
+                    value = propertyInfo.GetValue(target, index);
                 else
                     return false;
             } catch (Exception ex) {
@@ -493,7 +496,7 @@ namespace UInspectorPlus {
                     return true;
             return false;
         }
-        
+
         internal static Type GetGenericListType(Type targetType) {
             if (targetType.IsArray)
                 return targetType.GetElementType();

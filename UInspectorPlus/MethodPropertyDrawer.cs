@@ -1,8 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
-using UnityEditorInternal;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -24,6 +22,7 @@ namespace UInspectorPlus {
         UnityObject component;
         readonly List<ComponentFields> fields;
         string[] fieldNames;
+        object[] indexParams;
         int selectedFieldIndex;
         FieldInfo selectedField;
         PropertyInfo selectedProperty;
@@ -41,6 +40,8 @@ namespace UInspectorPlus {
         bool isStatic;
         bool isPrivate;
         public event Action OnRequireRedraw;
+
+        public GenericMenu.MenuFunction OnClose, OnEdit;
 
         Exception getException;
 
@@ -213,14 +214,23 @@ namespace UInspectorPlus {
             InitType();
         }
 
-        public MethodPropertyDrawer(PropertyInfo property, object target, bool allowPrivate, bool allowObsolete, bool initValue)
+        public MethodPropertyDrawer(PropertyInfo property, object target, bool allowPrivate, bool allowObsolete, bool initValue, params object[] indexParams)
             : this(allowPrivate, allowObsolete) {
             this.memberInfo = property;
             this.isInfoReadonly = Helper.IsReadOnly(property);
             this.requiredType = property.PropertyType;
-            this.name = Helper.GetMemberName(property, true);
-            this.nameContent = new GUIContent(name, Helper.GetMemberName(property));
-            if(initValue) this.rawValue = property.GetValue(target, null);
+            if (indexParams != null && indexParams.Length > 0) {
+                this.indexParams = indexParams;
+                var paramList = Helper.JoinStringList(null, indexParams.Select(new Func<object, string>(Convert.ToString)), ", ").ToString();
+                this.name = string.Format("{0}[{1}]",
+                    Helper.GetMemberName(property, true, false), paramList);
+                this.nameContent = new GUIContent(name, string.Format("{0}[{1}]",
+                    Helper.GetMemberName(property, false, false), paramList));
+            } else {
+                this.name = Helper.GetMemberName(property, true);
+                this.nameContent = new GUIContent(name, Helper.GetMemberName(property));
+            }
+            if (initValue) this.rawValue = property.GetValue(target, indexParams);
             this.target = target;
             var getMethod = property.GetGetMethod();
             this.isStatic = getMethod != null ? getMethod.IsStatic : false;
@@ -249,7 +259,7 @@ namespace UInspectorPlus {
 
         void InitType() {
             Helper.InitPropertyTypeMapper();
-            if(requiredType.IsArray) {
+            if (requiredType.IsArray) {
                 castableTypes.Add(PropertyType.Array);
                 currentType = PropertyType.Array;
                 return;
@@ -294,7 +304,7 @@ namespace UInspectorPlus {
                     currentType == PropertyType.Unknown ||
                     currentType == PropertyType.Object ||
                     currentType == PropertyType.Array)
-                ) || 
+                ) ||
                 allowReferenceMode ||
                 castableTypes.Count > 1;
             if (!rect.HasValue)
@@ -335,6 +345,33 @@ namespace UInspectorPlus {
                 EditorGUI.indentLevel++;
             if (getException != null)
                 EditorGUILayout.HelpBox(getException.Message, MessageType.Error);
+        }
+
+        public bool UpdateIfChanged() {
+            if (!changed)
+                return false;
+            if (Helper.AssignValue(memberInfo, target, Value, indexParams))
+                return true;
+            UpdateValue();
+            changed = false;
+            return false;
+        }
+
+        public bool UpdateValue() {
+            object value;
+            if (Helper.FetchValue(memberInfo, target, out value, indexParams)) {
+                rawValue = value;
+                GetException = null;
+                return true;
+            }
+            // Filter out index out of range / key not found exception
+            if (indexParams != null &&
+                indexParams.Length > 0 &&
+                (value is IndexOutOfRangeException ||
+                value is KeyNotFoundException))
+                return false;
+            GetException = value as Exception;
+            return false;
         }
 
         void AddField(UnityObject target) {
@@ -626,6 +663,13 @@ namespace UInspectorPlus {
                     menu.AddItem(new GUIContent("Allow Private Members"), privateFields, ChangePrivateFields, !privateFields);
                 else
                     menu.AddDisabledItem(new GUIContent("Allow Private Members"));
+            }
+            if (OnClose != null || OnEdit != null) {
+                menu.AddSeparator("");
+                if (OnEdit != null)
+                    menu.AddItem(new GUIContent("Edit Query..."), false, OnEdit);
+                if (OnClose != null)
+                    menu.AddItem(new GUIContent("Close"), false, OnClose);
             }
             menu.DropDown(position);
         }

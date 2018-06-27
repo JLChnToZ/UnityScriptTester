@@ -17,9 +17,6 @@ namespace UInspectorPlus {
         string[] methodNames;
         int selectedMethodIndex;
         MemberInfo selectedMember;
-        //ConstructorInfo selectedCtor { get { return selectedMember as ConstructorInfo; } }
-        //MethodInfo selectedMethod { get { return selectedMember as MethodInfo; } }
-        //PropertyInfo selectedIndexer { get { return selectedMember as PropertyInfo; } }
         ParameterInfo[] parameterInfo;
         MethodPropertyDrawer[] parameters;
         MethodPropertyDrawer result;
@@ -30,7 +27,11 @@ namespace UInspectorPlus {
             drawHeader = true, privateFields = true, obsolete = true;
         MethodMode mode = 0;
 
+        public bool execButton = true;
+
         public event Action OnRequireRedraw;
+
+        public GenericMenu.MenuFunction OnClose;
 
         public bool ShouldDrawHeader {
             get { return drawHeader; }
@@ -98,7 +99,7 @@ namespace UInspectorPlus {
 
         public ComponentMethodDrawer(Type type)
             : this() {
-            mode = MethodMode.Constructor; ;
+            mode = MethodMode.Constructor;
             ctorType = type;
             drawHeader = false;
             showMethodSelector.value = true;
@@ -135,13 +136,15 @@ namespace UInspectorPlus {
                             obsolete);
                         break;
                     case MethodMode.Indexer:
-                        returnData = (selectedMember as PropertyInfo).GetValue(component, requestData);
                         result = new MethodPropertyDrawer(
-                            (selectedMember as PropertyInfo).PropertyType,
-                            Helper.JoinStringList(null, requestData.Select(o => o.ToString()), ", ").ToString(),
-                            returnData,
-                            privateFields,
-                            obsolete);
+                            selectedMember as PropertyInfo,
+                            component, privateFields, obsolete, true,
+                            requestData) {
+                            OnEdit = () => {
+                                result = null;
+                            },
+                            OnClose = OnClose,
+                        };
                         break;
                     case MethodMode.Method:
                     default:
@@ -181,7 +184,11 @@ namespace UInspectorPlus {
                     EditorGUILayout.BeginVertical();
                     component = EditorGUILayout.ObjectField("Target", component as UnityObject, typeof(UnityObject), true);
                 }
-                if (component != null || mode == MethodMode.Constructor) {
+                if (mode != MethodMode.Indexer || result == null)
+                    EditorGUILayout.Space();
+                if (mode == MethodMode.Constructor ||
+                    (mode == MethodMode.Method && component != null) ||
+                    (mode == MethodMode.Indexer && component != null && result == null)) {
                     if (GUI.changed) {
                         InitComponentMethods();
                         GUI.changed = false;
@@ -200,7 +207,21 @@ namespace UInspectorPlus {
                     EditorGUILayout.EndVertical();
                     EditorGUI.indentLevel--;
                 }
+                if (execButton)
+                    DrawExecButton();
             }
+        }
+
+        public bool UpdateIfChanged() {
+            if (mode == MethodMode.Indexer && result != null)
+                return result.UpdateIfChanged();
+            return false;
+        }
+
+        public bool UpdateValue() {
+            if (mode == MethodMode.Indexer && result != null)
+                return result.UpdateValue();
+            return false;
         }
 
         void AddComponentMethod(Type type) {
@@ -214,16 +235,6 @@ namespace UInspectorPlus {
                 .Select(m => new ComponentMethod {
                     member = m,
                     mode = MethodMode.Constructor,
-                })
-            );
-            methods.AddRange(
-                type.GetProperties(flag)
-                .Where(t => obsolete || !Attribute.IsDefined(t, typeof(ObsoleteAttribute)))
-                .Where(t => t.GetIndexParameters().Length > 0)
-                .Where(t => string.IsNullOrEmpty(filter) || t.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                .Select(m => new ComponentMethod {
-                    member = m,
-                    mode = MethodMode.Indexer
                 })
             );
             flag &= ~BindingFlags.Instance;
@@ -243,8 +254,20 @@ namespace UInspectorPlus {
             BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
             if (privateFields)
                 flag |= BindingFlags.NonPublic;
+            Type type = target.GetType();
             methods.AddRange(
-                target.GetType().GetMethods(flag)
+                type.GetProperties(flag)
+                .Where(t => obsolete || !Attribute.IsDefined(t, typeof(ObsoleteAttribute)))
+                .Where(t => t.GetIndexParameters().Length > 0)
+                .Where(t => string.IsNullOrEmpty(filter) || t.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0)
+                .Select(m => new ComponentMethod {
+                    member = m,
+                    target = target,
+                    mode = MethodMode.Indexer
+                })
+            );
+            methods.AddRange(
+                type.GetMethods(flag)
                 .Where(t => obsolete || !Attribute.IsDefined(t, typeof(ObsoleteAttribute)))
                 .Where(t => string.IsNullOrEmpty(filter) || t.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0)
                 .Select(m => new ComponentMethod {
@@ -296,12 +319,12 @@ namespace UInspectorPlus {
         string GetMethodNameFormatted(ComponentMethod m, int i) {
             string name, formatStr;
             ParameterInfo[] parameters;
-            switch(m.mode) {
+            switch (m.mode) {
                 case MethodMode.Constructor:
-                    name = "[Constructor]";
+                    name = "[[Constructor]]";
                     break;
                 case MethodMode.Indexer:
-                    name = m.member.DeclaringType.Name;
+                    name = null;
                     break;
                 case MethodMode.Method:
                 default:
@@ -311,7 +334,7 @@ namespace UInspectorPlus {
             switch (m.mode) {
                 case MethodMode.Indexer:
                     parameters = (m.member as PropertyInfo).GetIndexParameters();
-                    formatStr = "{0} [{1}]";
+                    formatStr = "[{1}]";
                     break;
                 case MethodMode.Constructor:
                 case MethodMode.Method:
@@ -325,7 +348,7 @@ namespace UInspectorPlus {
 
         void InitMethodParams() {
             selectedMember = methods[selectedMethodIndex].member;
-            switch (methods[selectedMethodIndex].mode) {
+            switch (mode = methods[selectedMethodIndex].mode) {
                 case MethodMode.Constructor:
                     component = null;
                     parameterInfo = (selectedMember as ConstructorInfo).GetParameters();
@@ -351,13 +374,13 @@ namespace UInspectorPlus {
         }
 
         void DrawComponent() {
-            switch (mode) {
-                case MethodMode.Constructor:
-                    selectedMethodIndex = EditorGUILayout.Popup("Constructor", selectedMethodIndex, methodNames);
-                    break;
-                case MethodMode.Method:
-                    selectedMethodIndex = EditorGUILayout.Popup("Method", selectedMethodIndex, methodNames);
-                    break;
+            if (OnClose != null)
+                EditorGUILayout.BeginHorizontal();
+            selectedMethodIndex = EditorGUILayout.Popup(mode.ToString(), selectedMethodIndex, methodNames);
+            if (OnClose != null) {
+                if (GUILayout.Button("-", EditorStyles.miniButton, GUILayout.ExpandWidth(false)))
+                    OnClose();
+                EditorGUILayout.EndHorizontal();
             }
             if (selectedMethodIndex >= 0) {
                 if (GUI.changed) {
@@ -373,15 +396,16 @@ namespace UInspectorPlus {
         }
 
         void DrawMethod() {
-            switch(mode) {
+            switch (mode) {
                 case MethodMode.Constructor:
                     paramsFolded = EditorGUILayout.Foldout(paramsFolded, "Constructor");
                     break;
-                case MethodMode.Method:
-                    paramsFolded = EditorGUILayout.Foldout(paramsFolded, selectedMember.Name);
-                    break;
                 case MethodMode.Indexer:
-                    paramsFolded = EditorGUILayout.Foldout(paramsFolded, selectedMember.DeclaringType.Name);
+                    paramsFolded = EditorGUILayout.Foldout(paramsFolded, "Indexer");
+                    break;
+                case MethodMode.Method:
+                default:
+                    paramsFolded = EditorGUILayout.Foldout(paramsFolded, selectedMember.Name);
                     break;
             }
             if (paramsFolded) {
@@ -402,18 +426,21 @@ namespace UInspectorPlus {
         }
 
         void DrawResult() {
-            if (resultFolded = EditorGUILayout.Foldout(resultFolded, "Result")) {
+            if (mode == MethodMode.Indexer) {
+                if (result != null)
+                    result.Draw(false);
+                if (thrownException != null)
+                    EditorGUILayout.HelpBox(thrownException.Message, MessageType.Error);
+            } else if (resultFolded = EditorGUILayout.Foldout(resultFolded, "Result")) {
                 GUI.changed = false;
                 EditorGUI.indentLevel++;
                 EditorGUILayout.BeginVertical();
                 switch (mode) {
                     case MethodMode.Constructor: break;
                     case MethodMode.Method:
+                    default:
                         if (result != null)
                             result.Draw(true);
-                        break;
-                    case MethodMode.Indexer:
-                        // TODO: Indxer Handling
                         break;
                 }
                 if (thrownException != null)
@@ -421,6 +448,26 @@ namespace UInspectorPlus {
                 EditorGUILayout.EndVertical();
                 EditorGUI.indentLevel--;
             }
+        }
+
+        void DrawExecButton() {
+            if (selectedMember == null) return;
+            bool execute = false;
+            switch (mode) {
+                case MethodMode.Constructor:
+                    execute = GUILayout.Button("Construct");
+                    break;
+                case MethodMode.Indexer:
+                    if (result != null) return;
+                    execute = GUILayout.Button("Create Property");
+                    break;
+                case MethodMode.Method:
+                default:
+                    execute = GUILayout.Button("Execute " + selectedMember.Name);
+                    break;
+            }
+            if (execute)
+                Call();
         }
 
         void RequireRedraw() {

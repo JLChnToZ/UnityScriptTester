@@ -12,6 +12,7 @@ namespace UInspectorPlus {
     class InspectorDrawer {
         public object target;
         public List<IReflectorDrawer> drawer;
+        private HashSet<IReflectorDrawer> removingDrawers;
         public bool shown;
         public bool isInternalType;
         public bool changed;
@@ -22,12 +23,15 @@ namespace UInspectorPlus {
         List<MethodPropertyDrawer> arrayContentDrawer;
         ReorderableList arrayHandler;
         bool showListEdit;
+        bool allowPrivate;
+        bool allowMethods;
 
         public InspectorDrawer(object target, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
             this.target = target;
             this.drawer = new List<IReflectorDrawer>();
+            this.removingDrawers = new HashSet<IReflectorDrawer>();
             BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
-            if (showPrivateFields)
+            if (allowPrivate = showPrivateFields)
                 flag |= BindingFlags.NonPublic;
             targetType = target.GetType();
             elementType = Helper.GetGenericListType(targetType);
@@ -46,7 +50,7 @@ namespace UInspectorPlus {
                 }
             if (showProps) {
                 HashSet<string> blacklistedType;
-                if(!Helper.blackListedTypes.TryGetValue(targetType, out blacklistedType)) {
+                if (!Helper.blackListedTypes.TryGetValue(targetType, out blacklistedType)) {
                     Helper.blackListedTypes.Add(targetType, blacklistedType = new HashSet<string>());
                     foreach (var kvp in Helper.blackListedTypes)
                         if (kvp.Key.IsAssignableFrom(targetType))
@@ -67,11 +71,20 @@ namespace UInspectorPlus {
                         Debug.LogException(ex);
                     }
             }
-            if (showMethods)
-                drawer.Add(new ComponentMethodDrawer(target) { AllowPrivateFields = showPrivateFields });
+            if (allowMethods = showMethods)
+                AddMethodMenu();
             foreach (var d in drawer)
                 d.OnRequireRedraw += RequireRedraw;
             this.shown = Helper.GetState(target, shown);
+        }
+
+        void AddMethodMenu() {
+            ComponentMethodDrawer newDrawer = null;
+            newDrawer = new ComponentMethodDrawer(target) {
+                AllowPrivateFields = allowPrivate,
+                OnClose = () => removingDrawers.Add(newDrawer)
+            };
+            drawer.Add(newDrawer);
         }
 
         public void Draw(bool drawHeader = true, bool readOnly = false) {
@@ -110,7 +123,7 @@ namespace UInspectorPlus {
                             if (arrayContentDrawer[i].Changed)
                                 (target as IList)[i] = arrayContentDrawer[i].Value;
                         };
-                        arrayHandler.drawHeaderCallback = r => GUI.Label(r, target.ToString(), EditorStyles.boldLabel);
+                        arrayHandler.drawHeaderCallback = r => GUI.Label(r, target.ToString(), EditorStyles.miniBoldLabel);
                         arrayHandler.onCanAddCallback = l => target != null && !(target as IList).IsFixedSize;
                         arrayHandler.onCanRemoveCallback = arrayHandler.onCanAddCallback.Invoke;
                         arrayHandler.onAddCallback = l => {
@@ -125,18 +138,20 @@ namespace UInspectorPlus {
                     arrayHandler.DoLayoutList();
                 }
             }
+            if (removingDrawers.Count > 0) {
+                foreach (var d in removingDrawers)
+                    drawer.Remove(d);
+                removingDrawers.Clear();
+            }
             foreach (var item in drawer) {
                 var methodDrawer = item as ComponentMethodDrawer;
                 var fieldDrawer = item as MethodPropertyDrawer;
                 if (methodDrawer != null) {
-                    EditorGUILayout.Space();
                     EditorGUI.indentLevel--;
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
                     EditorGUILayout.BeginVertical();
                     methodDrawer.Draw();
-                    if (methodDrawer.Info != null && GUILayout.Button("Execute " + methodDrawer.Info.Name))
-                        methodDrawer.Call();
                     EditorGUILayout.EndVertical();
                     EditorGUILayout.EndHorizontal();
                     EditorGUI.indentLevel++;
@@ -147,23 +162,15 @@ namespace UInspectorPlus {
                         fieldDrawer.Draw(readOnly);
                     else
                         item.Draw();
-                    if (item.Changed) {
-                        if (!Helper.AssignValue(item.Info, target, item.Value)) {
-                            object value;
-                            var propDrawer = item as MethodPropertyDrawer;
-                            if (propDrawer != null) {
-                                var success = Helper.FetchValue(propDrawer.Info, target, out value);
-                                if (success) {
-                                    propDrawer.Value = value;
-                                    propDrawer.GetException = null;
-                                } else
-                                    propDrawer.GetException = value as Exception;
-                            }
-                        } else {
-                            changed = true;
-                        }
-                    }
+                    changed |= item.UpdateIfChanged();
                 }
+            }
+            if (allowMethods) {
+                GUILayout.BeginHorizontal();
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button(new GUIContent("+", "Add Method / Index Properties Watcher"), EditorStyles.miniButton, GUILayout.ExpandWidth(false)))
+                    AddMethodMenu();
+                GUILayout.EndHorizontal();
             }
             EditorGUILayout.EndVertical();
             EditorGUI.indentLevel--;
@@ -176,7 +183,7 @@ namespace UInspectorPlus {
         }
 
         public void UpdateValues(bool updateProps) {
-            if(target == null) return;
+            if (target == null) return;
             foreach (var drawerItem in drawer) {
                 var propDrawer = drawerItem as MethodPropertyDrawer;
                 if (propDrawer == null)
@@ -184,12 +191,7 @@ namespace UInspectorPlus {
                 var isPropInfo = propDrawer.Info is PropertyInfo;
                 if (!isInternalType && (!updateProps || !propDrawer.Updatable) && isPropInfo)
                     continue;
-                object value;
-                if (Helper.FetchValue(propDrawer.Info, target, out value)) {
-                    propDrawer.Value = value;
-                    propDrawer.GetException = null;
-                } else
-                    propDrawer.GetException = value as Exception;
+                propDrawer.UpdateValue();
             }
         }
 

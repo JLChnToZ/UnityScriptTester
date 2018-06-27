@@ -49,7 +49,7 @@ namespace UInspectorPlus {
                 drawer.changed = false;
                 if (parent != null && !parent.IsReadOnly &&
                     ((parent.requiredType != null && parent.requiredType.IsValueType) || parent.Value != drawer.target))
-                    if(!Helper.AssignValue(parent.Info, parent.Target, drawer.target)) {
+                    if (!Helper.AssignValue(parent.Info, parent.Target, drawer.target)) {
                         object reverted;
                         if (Helper.FetchValue(parent.Info, parent.Target, out reverted))
                             drawer.target = reverted;
