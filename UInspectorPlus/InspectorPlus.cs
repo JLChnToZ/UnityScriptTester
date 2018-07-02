@@ -6,31 +6,30 @@ using System.Linq;
 using UnityObject = UnityEngine.Object;
 
 namespace UInspectorPlus {
-    class InspectorPlus: EditorWindow, IHasCustomMenu {
-        const string description = "CAUTION: USE THIS PLUGIN AT YOUR OWN RISK!\n" +
+    internal class InspectorPlus: EditorWindow, IHasCustomMenu {
+        private const string description = "CAUTION: USE THIS PLUGIN AT YOUR OWN RISK!\n" +
             "Unless you know exactly what you are doing, do not use this plugin " +
             "or you may likely to corrupt your project or even crashes the editor!";
+        private readonly List<InspectorDrawer[]> drawers = new List<InspectorDrawer[]>();
+        private string searchText;
+        private Vector2 scrollPos;
+        private bool initialized;
+        private bool autoUpdateValues;
+        private bool privateFields;
+        private bool forceUpdateProps;
+        private bool showProps;
+        private bool showMethods;
+        private bool locked;
+        private bool showObsolete;
+        private int[] instanceIds = new int[0];
 
-        readonly List<InspectorDrawer[]> drawers = new List<InspectorDrawer[]>();
-        string searchText;
-        Vector2 scrollPos;
-        bool initialized;
-        bool autoUpdateValues;
-        bool privateFields;
-        bool forceUpdateProps;
-        bool showProps;
-        bool showMethods;
-        bool locked;
-        bool showObsolete;
-        int[] instanceIds = new int[0];
-
-        void OnEnable() {
+        private void OnEnable() {
             titleContent = new GUIContent("Inspector+", EditorGUIUtility.FindTexture("UnityEditor.InspectorWindow"));
             Initialize();
             OnFocus();
         }
 
-        void Initialize() {
+        private void Initialize() {
             if (initialized) return;
             autoUpdateValues = EditorPrefs.GetBool("inspectorplus_autoupdate", true);
             privateFields = EditorPrefs.GetBool("inspectorplus_private", true);
@@ -42,11 +41,11 @@ namespace UInspectorPlus {
             initialized = true;
         }
 
-        void OnFocus() {
+        private void OnFocus() {
             OnSelectionChange();
         }
 
-        void OnGUI() {
+        private void OnGUI() {
             GUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUI.changed = false;
             GUILayout.Space(8);
@@ -71,13 +70,13 @@ namespace UInspectorPlus {
             GUILayout.EndScrollView();
         }
 
-        void OnInspectorUpdate() {
+        private void OnInspectorUpdate() {
             if (!autoUpdateValues || EditorGUIUtility.editingTextField)
                 return;
             UpdateValues();
         }
 
-        void ShowButton(Rect rect) {
+        private void ShowButton(Rect rect) {
             GUI.Toggle(rect, locked, GUIContent.none, Helper.GetGUIStyle("IN LockButton"));
             if (GUI.changed)
                 TriggerLock();
@@ -126,19 +125,19 @@ namespace UInspectorPlus {
             });
         }
 
-        void RefreshList() {
+        private void RefreshList() {
             drawers.Clear();
             OnSelectionChange();
         }
 
-        void TriggerLock() {
+        private void TriggerLock() {
             locked = !locked;
             if (!locked)
                 OnSelectionChange();
             EditorPrefs.SetBool("inspectorplus_lock", locked);
         }
 
-        void OnSelectionChange() {
+        private void OnSelectionChange() {
             if (!locked)
                 instanceIds = Selection.instanceIDs;
             var pendingRemoveDrawers = new List<InspectorDrawer[]>();
@@ -154,7 +153,7 @@ namespace UInspectorPlus {
             UpdateValues();
         }
 
-        InspectorDrawer[] CreateDrawers(int instanceID) {
+        private InspectorDrawer[] CreateDrawers(int instanceID) {
             var target = EditorUtility.InstanceIDToObject(instanceID);
             if (target == null)
                 return new InspectorDrawer[0];
@@ -176,22 +175,22 @@ namespace UInspectorPlus {
             return ret.ToArray();
         }
 
-        InspectorDrawer CreateDrawer(UnityObject target, bool shown) {
+        private InspectorDrawer CreateDrawer(UnityObject target, bool shown) {
             var drawer = new InspectorDrawer(target, shown, showProps, privateFields, showObsolete, showMethods);
             drawer.OnRequireRedraw += Repaint;
             return drawer;
         }
 
-        void IterateDrawers<T>(Action<T> each) where T : IReflectorDrawer {
+        private void IterateDrawers<T>(Action<T> each) where T : IReflectorDrawer {
             foreach (var methodDrawer in drawers.SelectMany(drawer => drawer).SelectMany(drawer => drawer.drawer).OfType<T>())
                 each(methodDrawer);
         }
 
-        void UpdateValues() {
+        private void UpdateValues() {
             UpdateValues(forceUpdateProps || EditorApplication.isPlaying);
         }
 
-        void UpdateValues(bool updateProps) {
+        private void UpdateValues(bool updateProps) {
             foreach (var drawerGroup in drawers.SelectMany(drawer => drawer))
                 drawerGroup.UpdateValues(updateProps);
             Repaint();

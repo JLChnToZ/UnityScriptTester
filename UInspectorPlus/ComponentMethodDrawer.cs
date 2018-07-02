@@ -8,24 +8,24 @@ using System.Reflection;
 using UnityObject = UnityEngine.Object;
 
 namespace UInspectorPlus {
-    class ComponentMethodDrawer: IReflectorDrawer {
-        object component;
-        readonly List<ComponentMethod> methods = new List<ComponentMethod>();
-        AnimBool showMethodOptions;
-        AnimBool showMethodSelector;
-        AnimBool showResultSelector;
-        string[] methodNames;
-        int selectedMethodIndex;
-        MemberInfo selectedMember;
-        ParameterInfo[] parameterInfo;
-        MethodPropertyDrawer[] parameters;
-        MethodPropertyDrawer result;
-        Exception thrownException;
-        string filter;
-        Type ctorType;
-        bool titleFolded = true, paramsFolded = true, resultFolded = true,
+    internal class ComponentMethodDrawer: IReflectorDrawer {
+        private object component;
+        private readonly List<ComponentMethod> methods = new List<ComponentMethod>();
+        private AnimBool showMethodOptions;
+        private AnimBool showMethodSelector;
+        private AnimBool showResultSelector;
+        private string[] methodNames;
+        private int selectedMethodIndex;
+        private MemberInfo selectedMember;
+        private ParameterInfo[] parameterInfo;
+        private MethodPropertyDrawer[] parameters;
+        private MethodPropertyDrawer result;
+        private Exception thrownException;
+        private string filter;
+        private readonly Type ctorType;
+        private bool titleFolded = true, paramsFolded = true, resultFolded = true,
             drawHeader = true, privateFields = true, obsolete = true;
-        MethodMode mode = 0;
+        private MethodMode mode = 0;
 
         public bool execButton = true;
 
@@ -123,7 +123,7 @@ namespace UInspectorPlus {
             }
             try {
                 thrownException = null;
-                var requestData = parameters.Select(d => d.Value).ToArray();
+                var requestData = Array.ConvertAll(parameters, d => d.Value);
                 object returnData;
                 switch (mode) {
                     case MethodMode.Constructor:
@@ -224,7 +224,7 @@ namespace UInspectorPlus {
             return false;
         }
 
-        void AddComponentMethod(Type type) {
+        private void AddComponentMethod(Type type) {
             BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
             if (privateFields)
                 flag |= BindingFlags.NonPublic;
@@ -250,7 +250,7 @@ namespace UInspectorPlus {
             );
         }
 
-        void AddComponentMethod(object target) {
+        private void AddComponentMethod(object target) {
             BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
             if (privateFields)
                 flag |= BindingFlags.NonPublic;
@@ -278,7 +278,7 @@ namespace UInspectorPlus {
             );
         }
 
-        void InitComponentMethods(bool resetIndex = true) {
+        private void InitComponentMethods(bool resetIndex = true) {
             methods.Clear();
             switch (mode) {
                 case MethodMode.Constructor:
@@ -316,7 +316,7 @@ namespace UInspectorPlus {
             thrownException = null;
         }
 
-        string GetMethodNameFormatted(ComponentMethod m, int i) {
+        private string GetMethodNameFormatted(ComponentMethod m, int i) {
             string name, formatStr;
             ParameterInfo[] parameters;
             switch (m.mode) {
@@ -346,7 +346,7 @@ namespace UInspectorPlus {
             return string.Format(formatStr, name, Helper.JoinStringList(null, parameters.Select(x => x.ParameterType.Name), ", "));
         }
 
-        void InitMethodParams() {
+        private void InitMethodParams() {
             selectedMember = methods[selectedMethodIndex].member;
             switch (mode = methods[selectedMethodIndex].mode) {
                 case MethodMode.Constructor:
@@ -373,7 +373,7 @@ namespace UInspectorPlus {
             thrownException = null;
         }
 
-        void DrawComponent() {
+        private void DrawComponent() {
             if (OnClose != null)
                 EditorGUILayout.BeginHorizontal();
             selectedMethodIndex = EditorGUILayout.Popup(mode.ToString(), selectedMethodIndex, methodNames);
@@ -395,7 +395,7 @@ namespace UInspectorPlus {
             EditorGUILayout.EndFadeGroup();
         }
 
-        void DrawMethod() {
+        private void DrawMethod() {
             switch (mode) {
                 case MethodMode.Constructor:
                     paramsFolded = EditorGUILayout.Foldout(paramsFolded, "Constructor");
@@ -425,7 +425,7 @@ namespace UInspectorPlus {
             }
         }
 
-        void DrawResult() {
+        private void DrawResult() {
             if (mode == MethodMode.Indexer) {
                 if (result != null)
                     result.Draw(false);
@@ -450,7 +450,7 @@ namespace UInspectorPlus {
             }
         }
 
-        void DrawExecButton() {
+        private void DrawExecButton() {
             if (selectedMember == null) return;
             bool execute = false;
             switch (mode) {
@@ -470,7 +470,7 @@ namespace UInspectorPlus {
                 Call();
         }
 
-        void RequireRedraw() {
+        private void RequireRedraw() {
             if (OnRequireRedraw != null)
                 OnRequireRedraw();
         }

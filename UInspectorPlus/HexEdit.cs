@@ -8,10 +8,10 @@ using UnityEditor;
 
 namespace UInspectorPlus {
     internal class HexEdit {
-        [SerializeField] Vector2 scrollPos;
+        [SerializeField] private Vector2 scrollPos;
         public byte[] data;
         public int columns = 16;
-        GUIContent temp = new GUIContent();
+        private GUIContent temp = new GUIContent();
 
         public float Height {
             get {

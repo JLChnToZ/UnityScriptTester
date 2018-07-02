@@ -9,7 +9,7 @@ using System.Linq;
 using UnityObject = UnityEngine.Object;
 
 namespace UInspectorPlus {
-    class InspectorDrawer {
+    internal class InspectorDrawer {
         public object target;
         public List<IReflectorDrawer> drawer;
         private HashSet<IReflectorDrawer> removingDrawers;
@@ -18,18 +18,19 @@ namespace UInspectorPlus {
         public bool changed;
         public string searchText;
         public event Action OnRequireRedraw;
-        Type targetType, elementType;
-        HexEdit hexEdit;
-        List<MethodPropertyDrawer> arrayContentDrawer;
-        ReorderableList arrayHandler;
-        bool showListEdit;
-        bool allowPrivate;
-        bool allowMethods;
+        private Type targetType;
+        private readonly Type elementType;
+        private HexEdit hexEdit;
+        private List<MethodPropertyDrawer> arrayContentDrawer;
+        private ReorderableList arrayHandler;
+        private bool showListEdit;
+        private bool allowPrivate;
+        private readonly bool allowMethods;
 
         public InspectorDrawer(object target, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
             this.target = target;
-            this.drawer = new List<IReflectorDrawer>();
-            this.removingDrawers = new HashSet<IReflectorDrawer>();
+            drawer = new List<IReflectorDrawer>();
+            removingDrawers = new HashSet<IReflectorDrawer>();
             BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
             if (allowPrivate = showPrivateFields)
                 flag |= BindingFlags.NonPublic;
@@ -78,7 +79,7 @@ namespace UInspectorPlus {
             this.shown = Helper.GetState(target, shown);
         }
 
-        void AddMethodMenu() {
+        private void AddMethodMenu() {
             ComponentMethodDrawer newDrawer = null;
             newDrawer = new ComponentMethodDrawer(target) {
                 AllowPrivateFields = allowPrivate,
@@ -114,25 +115,26 @@ namespace UInspectorPlus {
                             for (int i = 0; i < (target as IList).Count; i++)
                                 ListAddItem();
                         }
-                        arrayHandler = new ReorderableList(target as IList, elementType);
-                        arrayHandler.headerHeight = EditorGUIUtility.singleLineHeight;
-                        arrayHandler.elementHeight = EditorGUIUtility.singleLineHeight + 2;
-                        arrayHandler.drawElementCallback = (r, i, c, d) => {
-                            arrayContentDrawer[i].Value = (target as IList)[i];
-                            arrayContentDrawer[i].Draw(false, Helper.ScaleRect(r, offsetHeight: -2));
-                            if (arrayContentDrawer[i].Changed)
-                                (target as IList)[i] = arrayContentDrawer[i].Value;
-                        };
-                        arrayHandler.drawHeaderCallback = r => GUI.Label(r, target.ToString(), EditorStyles.miniBoldLabel);
-                        arrayHandler.onCanAddCallback = l => target != null && !(target as IList).IsFixedSize;
-                        arrayHandler.onCanRemoveCallback = arrayHandler.onCanAddCallback.Invoke;
-                        arrayHandler.onAddCallback = l => {
-                            ReorderableList.defaultBehaviours.DoAddButton(l);
-                            ListAddItem();
-                        };
-                        arrayHandler.onRemoveCallback = l => {
-                            ReorderableList.defaultBehaviours.DoRemoveButton(l);
-                            arrayContentDrawer.RemoveAt(0);
+                        arrayHandler = new ReorderableList(target as IList, elementType) {
+                            headerHeight = EditorGUIUtility.singleLineHeight,
+                            elementHeight = EditorGUIUtility.singleLineHeight + 2,
+                            drawElementCallback = (r, i, c, d) => {
+                                arrayContentDrawer[i].Value = (target as IList)[i];
+                                arrayContentDrawer[i].Draw(false, Helper.ScaleRect(r, offsetHeight: -2));
+                                if (arrayContentDrawer[i].Changed)
+                                    (target as IList)[i] = arrayContentDrawer[i].Value;
+                            },
+                            drawHeaderCallback = r => GUI.Label(r, target.ToString(), EditorStyles.miniBoldLabel),
+                            onCanAddCallback = l => target != null && !(target as IList).IsFixedSize,
+                            onCanRemoveCallback = arrayHandler.onCanAddCallback.Invoke,
+                            onAddCallback = l => {
+                                ReorderableList.defaultBehaviours.DoAddButton(l);
+                                ListAddItem();
+                            },
+                            onRemoveCallback = l => {
+                                ReorderableList.defaultBehaviours.DoRemoveButton(l);
+                                arrayContentDrawer.RemoveAt(0);
+                            }
                         };
                     }
                     arrayHandler.DoLayoutList();
@@ -176,7 +178,7 @@ namespace UInspectorPlus {
             EditorGUI.indentLevel--;
         }
 
-        void ListAddItem(object value = null) {
+        private void ListAddItem(object value = null) {
             var drawer = new MethodPropertyDrawer(elementType, "", value, true, false);
             drawer.OnRequireRedraw += RequireRedraw;
             arrayContentDrawer.Add(drawer);
@@ -195,7 +197,7 @@ namespace UInspectorPlus {
             }
         }
 
-        void RequireRedraw() {
+        private void RequireRedraw() {
             if (target != null && OnRequireRedraw != null)
                 OnRequireRedraw();
         }

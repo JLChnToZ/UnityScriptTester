@@ -2,18 +2,18 @@
 using UnityEditor;
 
 namespace UInspectorPlus {
-    class InspectorChildWindow: EditorWindow {
-        InspectorDrawer drawer;
-        MethodPropertyDrawer parent;
-        Vector2 scrollPos;
-        bool updateProps;
-        bool isReadOnly;
+    internal class InspectorChildWindow: EditorWindow {
+        private InspectorDrawer drawer;
+        private MethodPropertyDrawer parent;
+        private Vector2 scrollPos;
+        private bool updateProps;
+        private bool isReadOnly;
 
         public static void Open(object target, bool showProps, bool showPrivate, bool showObsolete, bool showMethods, bool updateProps, MethodPropertyDrawer parent) {
             CreateInstance<InspectorChildWindow>().InternalOpen(target, showProps, showPrivate, showObsolete, showMethods, updateProps, parent);
         }
 
-        void InternalOpen(object target, bool showProps, bool showPrivate, bool showObsolete, bool showMethods, bool updateProps, MethodPropertyDrawer parent) {
+        private void InternalOpen(object target, bool showProps, bool showPrivate, bool showObsolete, bool showMethods, bool updateProps, MethodPropertyDrawer parent) {
             titleContent = new GUIContent(string.Format("{0} - Inspector+", target));
             drawer = new InspectorDrawer(target, true, showProps, showPrivate, showObsolete, showMethods);
             drawer.OnRequireRedraw += Repaint;
@@ -24,7 +24,7 @@ namespace UInspectorPlus {
             isReadOnly = parent != null && parent.IsReadOnly && parent.requiredType != null && parent.requiredType.IsValueType;
         }
 
-        void OnGUI() {
+        private void OnGUI() {
             GUILayout.BeginHorizontal(EditorStyles.toolbar);
             updateProps = GUILayout.Toggle(updateProps, "Update Props", EditorStyles.toolbarButton);
             GUILayout.Space(8);
@@ -60,13 +60,13 @@ namespace UInspectorPlus {
             if (drawer.target == null) Close();
         }
 
-        void OnInspectorUpdate() {
+        private void OnInspectorUpdate() {
             if (EditorGUIUtility.editingTextField)
                 return;
             UpdateValues();
         }
 
-        void UpdateValues() {
+        private void UpdateValues() {
             drawer.UpdateValues(updateProps);
         }
     }

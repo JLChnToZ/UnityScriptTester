@@ -9,7 +9,7 @@ using System.Text;
 using UnityObject = UnityEngine.Object;
 
 namespace UInspectorPlus {
-    enum PropertyType {
+    internal enum PropertyType {
         Unknown,
         Bool,
         Enum,
@@ -35,25 +35,25 @@ namespace UInspectorPlus {
         RectInt,
     }
 
-    enum MethodMode {
+    internal enum MethodMode {
         Method,
         Constructor,
         Indexer
     }
 
-    struct ComponentMethod {
+    internal struct ComponentMethod {
         public MethodMode mode;
         public MemberInfo member;
         public object target;
     }
 
-    struct ComponentFields {
+    internal struct ComponentFields {
         public FieldInfo field;
         public PropertyInfo property;
         public UnityObject target;
     }
 
-    interface IReflectorDrawer {
+    internal interface IReflectorDrawer {
         void Draw();
         bool UpdateIfChanged();
         bool UpdateValue();
@@ -68,30 +68,18 @@ namespace UInspectorPlus {
     public static class Helper {
         internal static readonly Dictionary<Type, PropertyType> propertyTypeMapper = new Dictionary<Type, PropertyType>();
         internal static readonly Dictionary<Type, HashSet<string>> blackListedTypes = new Dictionary<Type, HashSet<string>>();
-        static double clickTime;
-        
-        // Delegate hacks to access the internal methods
-        internal static readonly Func<GUIContent, Rect, Gradient, Gradient> doGradientField = Delegate.CreateDelegate(
-            typeof(Func<GUIContent, Rect, Gradient, Gradient>),
-            typeof(EditorGUI).GetMethod(
-                "GradientField",
-                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static,
-                null, CallingConventions.Any,
-                new[] { typeof(GUIContent), typeof(Rect), typeof(Gradient) },
-                null
-            )
-        ) as Func<GUIContent, Rect, Gradient, Gradient>;
+        private static double clickTime;
 
-        internal static readonly Func<GUIContent, Gradient, GUILayoutOption[], Gradient> doLayoutGradiantField = Delegate.CreateDelegate(
-            typeof(Func<GUIContent, Gradient, GUILayoutOption[], Gradient>),
-            typeof(EditorGUILayout).GetMethod(
-                "GradientField",
-                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static,
-                null, CallingConventions.Any,
-                new[] { typeof(GUIContent), typeof(Gradient), typeof(GUILayoutOption[]) },
-                null
-            )
-        ) as Func<GUIContent, Gradient, GUILayoutOption[], Gradient>;
+        // Delegate hacks to access the internal methods
+        private delegate Gradient DoGradientField(GUIContent guiContent, Rect rect, Gradient gradient);
+        private static readonly DoGradientField doGradientField =
+            GetDelegate<DoGradientField>(typeof(EditorGUI), "GradientField");
+
+        private delegate Gradient DoLayoutGradientField(GUIContent guiContent, Gradient gradient, params GUILayoutOption[] options);
+        private static readonly DoLayoutGradientField doLayoutGradiantField =
+            GetDelegate<DoLayoutGradientField>(typeof(EditorGUILayout), "GradientField");
+
+        private static readonly Hashtable storedState = new Hashtable();
 
         internal static void InitPropertyTypeMapper() {
             if (propertyTypeMapper.Count > 0)
@@ -124,20 +112,20 @@ namespace UInspectorPlus {
             AddPropertyTypeMap("UnityEngine.Vector3Int, UnityEngine.dll", PropertyType.Vector3Int);
             AddPropertyTypeMap("UnityEngine.RectInt, UnityEngine.dll", PropertyType.RectInt);
 
-            // Danger properties! Do not use them or they will instanlize junks
+            // Danger properties! Do not use them or they will instanate junks
             AddBlacklistedType("UnityEngine.MeshFilter, UnityEngine.dll", "mesh");
             AddBlacklistedType("UnityEngine.Renderer, UnityEngine.dll", "material", "materials");
             AddBlacklistedType("UnityEngine.Collider, UnityEngine.dll", "material");
             AddBlacklistedType("UnityEngine.Collider2D, UnityEngine.dll", "material");
         }
 
-        static void AddPropertyTypeMap(string typeName, PropertyType propType) {
+        private static void AddPropertyTypeMap(string typeName, PropertyType propType) {
             Type type = Type.GetType(typeName, false, false);
             if (type != null)
                 propertyTypeMapper.Add(type, propType);
         }
 
-        static void AddBlacklistedType(string typeName, params string[] props) {
+        private static void AddBlacklistedType(string typeName, params string[] props) {
             Type type = Type.GetType(typeName, false, false);
             if (type == null) return;
             HashSet<string> list;
@@ -145,8 +133,6 @@ namespace UInspectorPlus {
                 blackListedTypes.Add(type, list = new HashSet<string>());
             list.UnionWith(props);
         }
-
-        static readonly Hashtable storedState = new Hashtable();
 
         internal static void StoreState(object key, object value) {
             if (storedState.ContainsKey(key))
@@ -279,8 +265,8 @@ namespace UInspectorPlus {
             return EnumFieldPostProcess(itemValues, newVal);
         }
 
-        static int EnumFieldPreProcess(Type type, object rawValue, out GUIContent[] itemNames, out Array itemValues) {
-            itemNames = Enum.GetNames(type).Select(x => new GUIContent(x)).ToArray();
+        private static int EnumFieldPreProcess(Type type, object rawValue, out GUIContent[] itemNames, out Array itemValues) {
+            itemNames = Array.ConvertAll(Enum.GetNames(type), x => new GUIContent(x));
             itemValues = Enum.GetValues(type);
             long val = Convert.ToInt64(rawValue);
             for (int i = 0; i < itemValues.Length; i++)
@@ -289,7 +275,7 @@ namespace UInspectorPlus {
             return 0;
         }
 
-        static object EnumFieldPostProcess(Array itemValues, int val) {
+        private static object EnumFieldPostProcess(Array itemValues, int val) {
             return itemValues.GetValue(val);
         }
 
@@ -318,7 +304,7 @@ namespace UInspectorPlus {
             return MaskedEnumFieldPostProcess(type, itemValues, mask, val, newVal);
         }
 
-        static int MaskedEnumFieldPreProcess(Type type, object rawValue, out string[] itemNames, out Array itemValues) {
+        private static int MaskedEnumFieldPreProcess(Type type, object rawValue, out string[] itemNames, out Array itemValues) {
             itemNames = Enum.GetNames(type);
             itemValues = Enum.GetValues(type);
             int maskVal = 0;
@@ -334,7 +320,7 @@ namespace UInspectorPlus {
             return maskVal;
         }
 
-        static object MaskedEnumFieldPostProcess(Type enumType, Array itemValues, object rawValue, int maskVal, int newMaskVal) {
+        private static object MaskedEnumFieldPostProcess(Type enumType, Array itemValues, object rawValue, int maskVal, int newMaskVal) {
             int changes = maskVal ^ newMaskVal;
             long value = Convert.ToInt64(rawValue), itemValue;
             for (int i = 0; i < itemValues.Length; i++)
@@ -429,14 +415,14 @@ namespace UInspectorPlus {
         }
 
         internal static Gradient GradientField(Rect position, GUIContent label, Gradient value) {
-            return doGradientField.Invoke(label, position, value);
+            return doGradientField(label, position, value);
         }
 
         internal static Gradient GradientField(GUIContent label, Gradient value, params GUILayoutOption[] options) {
-            return doLayoutGradiantField.Invoke(label, value, options);
+            return doLayoutGradiantField(label, value, options);
         }
 
-        static void ClickObject(UnityObject obj) {
+        private static void ClickObject(UnityObject obj) {
             var newClickTime = EditorApplication.timeSinceStartup;
             if (newClickTime - clickTime < 0.3 && obj != null)
                 Selection.activeObject = obj;
@@ -444,7 +430,7 @@ namespace UInspectorPlus {
             EditorGUIUtility.PingObject(obj);
         }
 
-        static int CountLines(string str) {
+        private static int CountLines(string str) {
             if (string.IsNullOrEmpty(str))
                 return 1;
             int cursor = 0, count = 0, length = str.Length, i = -1;
@@ -551,7 +537,27 @@ namespace UInspectorPlus {
             return value == null ? defaultValue : (T)value;
         }
 
-        [MenuItem("Window/Script Tester/Inspector+")]
+        internal static T GetDelegate<T>(Type fromType, string methodName) where T : class {
+            Type t = typeof(T);
+            if (!t.IsSubclassOf(typeof(Delegate)))
+                throw new ArgumentException(string.Format("{0} is not delegate.", t.Name));
+            MethodInfo invokeMethod = t.GetMethod("Invoke");
+            if (invokeMethod == null)
+                throw new ArgumentException(string.Format(
+                    "Cannot determine what parameters does {0} have, as no Invoke(...) signature found. Perhaps this is not a valid delegate.",
+                    t.Name
+                ));
+            MethodInfo method = fromType.GetMethod(
+                methodName,
+                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static,
+                null, CallingConventions.Any,
+                Array.ConvertAll(invokeMethod.GetParameters(), p => p.ParameterType),
+                null
+            );
+            return method == null ? null : Delegate.CreateDelegate(t, method) as T;
+        }
+
+        [MenuItem("Window/Inspector+")]
         public static void ShowInspectorPlus() {
             EditorWindow.GetWindow(typeof(InspectorPlus));
         }
