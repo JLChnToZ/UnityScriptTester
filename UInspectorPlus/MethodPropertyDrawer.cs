@@ -257,7 +257,6 @@ namespace UInspectorPlus {
         }
 
         private void InitType() {
-            Helper.InitPropertyTypeMapper();
             if (requiredType.IsArray) {
                 castableTypes.Add(PropertyType.Array);
                 currentType = PropertyType.Array;

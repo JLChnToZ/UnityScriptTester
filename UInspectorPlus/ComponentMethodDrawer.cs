@@ -51,9 +51,7 @@ namespace UInspectorPlus {
         }
 
         public bool AllowPrivateFields {
-            get {
-                return privateFields;
-            }
+            get { return privateFields; }
             set {
                 privateFields = value;
                 InitComponentMethods(false);
@@ -61,9 +59,7 @@ namespace UInspectorPlus {
         }
 
         public bool AllowObsolete {
-            get {
-                return obsolete;
-            }
+            get { return obsolete; }
             set {
                 obsolete = value;
                 InitComponentMethods(false);
@@ -71,9 +67,7 @@ namespace UInspectorPlus {
         }
 
         public MemberInfo Info {
-            get {
-                return selectedMember;
-            }
+            get { return selectedMember; }
         }
 
         public bool IsComponentNull() {
@@ -140,9 +134,7 @@ namespace UInspectorPlus {
                             selectedMember as PropertyInfo,
                             component, privateFields, obsolete, true,
                             requestData) {
-                            OnEdit = () => {
-                                result = null;
-                            },
+                            OnEdit = () => result = null,
                             OnClose = OnClose,
                         };
                         break;
@@ -224,29 +216,32 @@ namespace UInspectorPlus {
             return false;
         }
 
+        private bool FilterMemberInfo(MemberInfo m) {
+            return (obsolete || !Attribute.IsDefined(m, typeof(ObsoleteAttribute))) &&
+                (string.IsNullOrEmpty(filter) ||
+                m.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0);
+        }
+
         private void AddComponentMethod(Type type) {
             BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
             if (privateFields)
                 flag |= BindingFlags.NonPublic;
             methods.AddRange(
-                type.GetConstructors(flag)
-                .Where(t => obsolete || !Attribute.IsDefined(t, typeof(ObsoleteAttribute)))
-                .Where(t => string.IsNullOrEmpty(filter) || t.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                .Select(m => new ComponentMethod {
+                from m in type.GetConstructors(flag)
+                where FilterMemberInfo(m)
+                select new ComponentMethod {
                     member = m,
                     mode = MethodMode.Constructor,
-                })
+                }
             );
             flag &= ~BindingFlags.Instance;
             methods.AddRange(
-                type.GetMethods(flag)
-                .Where(t => obsolete || !Attribute.IsDefined(t, typeof(ObsoleteAttribute)))
-                .Where(t => t.ReturnType == type)
-                .Where(t => string.IsNullOrEmpty(filter) || t.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                .Select(m => new ComponentMethod {
+                from m in type.GetMethods(flag)
+                where FilterMemberInfo(m) && m.ReturnType == type
+                select new ComponentMethod {
                     member = m,
-                    mode = MethodMode.Method
-                })
+                    mode = MethodMode.Method,
+                }
             );
         }
 
@@ -256,25 +251,22 @@ namespace UInspectorPlus {
                 flag |= BindingFlags.NonPublic;
             Type type = target.GetType();
             methods.AddRange(
-                type.GetProperties(flag)
-                .Where(t => obsolete || !Attribute.IsDefined(t, typeof(ObsoleteAttribute)))
-                .Where(t => t.GetIndexParameters().Length > 0)
-                .Where(t => string.IsNullOrEmpty(filter) || t.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                .Select(m => new ComponentMethod {
+                from m in type.GetProperties(flag)
+                where FilterMemberInfo(m) && m.GetIndexParameters().Length > 0
+                select new ComponentMethod {
                     member = m,
                     target = target,
-                    mode = MethodMode.Indexer
-                })
+                    mode = MethodMode.Indexer,
+                }
             );
             methods.AddRange(
-                type.GetMethods(flag)
-                .Where(t => obsolete || !Attribute.IsDefined(t, typeof(ObsoleteAttribute)))
-                .Where(t => string.IsNullOrEmpty(filter) || t.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                .Select(m => new ComponentMethod {
+                from m in type.GetMethods(flag)
+                where FilterMemberInfo(m)
+                select new ComponentMethod {
                     member = m,
                     target = target,
                     mode = MethodMode.Method,
-                })
+                }
             );
         }
 

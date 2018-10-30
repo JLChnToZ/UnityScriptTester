@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Globalization;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
 using UnityEditor;
 
@@ -70,7 +67,7 @@ namespace UInspectorPlus {
                     if (GUI.changed) {
                         GUI.changed = false;
                         changed = true;
-                        data[col] = unchecked((byte)newStr[0]);
+                        data[col] = newStr.Length > 0 ? unchecked((byte)newStr[0]) : (byte)0;
                     }
                 }
                 GUI.changed = changed;
@@ -79,7 +76,8 @@ namespace UInspectorPlus {
         }
 
         private static string Byte2String(byte b) {
-            if (b < 32 || b >= 127) return ".";
+            if (b < 32) return ((char)(b | 0x2400)).ToString();
+            if (b >= 127) return ".";
             return ((char)b).ToString();
         }
     }

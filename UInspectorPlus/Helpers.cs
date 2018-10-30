@@ -72,18 +72,14 @@ namespace UInspectorPlus {
 
         // Delegate hacks to access the internal methods
         private delegate Gradient DoGradientField(GUIContent guiContent, Rect rect, Gradient gradient);
-        private static readonly DoGradientField doGradientField =
-            GetDelegate<DoGradientField>(typeof(EditorGUI), "GradientField");
+        private static readonly DoGradientField doGradientField = GetDelegate<EditorGUI, DoGradientField>("GradientField");
 
         private delegate Gradient DoLayoutGradientField(GUIContent guiContent, Gradient gradient, params GUILayoutOption[] options);
-        private static readonly DoLayoutGradientField doLayoutGradiantField =
-            GetDelegate<DoLayoutGradientField>(typeof(EditorGUILayout), "GradientField");
+        private static readonly DoLayoutGradientField doLayoutGradiantField = GetDelegate<EditorGUILayout, DoLayoutGradientField>("GradientField");
 
         private static readonly Hashtable storedState = new Hashtable();
 
-        internal static void InitPropertyTypeMapper() {
-            if (propertyTypeMapper.Count > 0)
-                return;
+        static Helper() {
             AddPropertyTypeMap("System.String", PropertyType.String);
             AddPropertyTypeMap("System.Boolean", PropertyType.Bool);
             AddPropertyTypeMap("System.Byte", PropertyType.Integer);
@@ -537,24 +533,60 @@ namespace UInspectorPlus {
             return value == null ? defaultValue : (T)value;
         }
 
-        internal static T GetDelegate<T>(Type fromType, string methodName) where T : class {
-            Type t = typeof(T);
-            if (!t.IsSubclassOf(typeof(Delegate)))
-                throw new ArgumentException(string.Format("{0} is not delegate.", t.Name));
-            MethodInfo invokeMethod = t.GetMethod("Invoke");
+        internal static TDelegate GetDelegate<TDelegate>(string fromTypeName, string methodName, object target = null) where TDelegate : class {
+            if (fromTypeName == null)
+                throw new ArgumentNullException("fromTypeName");
+            Type fromType = Type.GetType(fromTypeName, false);
+            if (fromType == null) return null;
+            return GetDelegate<TDelegate>(fromType, methodName, target);
+        }
+
+        internal static TDelegate GetDelegate<TDelegate>(Type fromType, string methodName, object target = null) where TDelegate : class {
+            if (fromType == null)
+                throw new ArgumentNullException("fromType");
+            if (methodName == null)
+                throw new ArgumentNullException("methodName");
+            Type delegateType = typeof(TDelegate);
+            MethodInfo method = FindMethod(fromType, methodName, delegateType);
+            if (method == null)
+                return null;
+            if (method.IsStatic)
+                return Delegate.CreateDelegate(delegateType, method, false) as TDelegate;
+            if (target == null && fromType.IsValueType)
+                target = Activator.CreateInstance(fromType);
+            return Delegate.CreateDelegate(delegateType, target, method, false) as TDelegate;
+        }
+
+        internal static TDelegate GetDelegate<TFrom, TDelegate>(string methodName, TFrom target = default(TFrom)) where TDelegate : class {
+            if (methodName == null)
+                throw new ArgumentNullException("methodName");
+            Type delegateType = typeof(TDelegate);
+            MethodInfo method = FindMethod(typeof(TFrom), methodName, delegateType);
+            if (method == null)
+                return null;
+            if (method.IsStatic)
+                return Delegate.CreateDelegate(delegateType, method, false) as TDelegate;
+            return Delegate.CreateDelegate(delegateType, target, method, false) as TDelegate;
+        }
+
+        private static MethodInfo FindMethod(Type fromType, string methodName, Type delegateType) {
+            const string NotADelegateMsg = "{0} is not a delegate.";
+            const string MissingInvokeMsg =
+                "Cannot determine what parameters does {0} have, " +
+                "as no Invoke(...) signature found. " +
+                "Perhaps this is not a valid delegate.";
+            if (!delegateType.IsSubclassOf(typeof(Delegate)))
+                throw new ArgumentException(string.Format(NotADelegateMsg, delegateType.Name));
+            MethodInfo invokeMethod = delegateType.GetMethod("Invoke");
             if (invokeMethod == null)
-                throw new ArgumentException(string.Format(
-                    "Cannot determine what parameters does {0} have, as no Invoke(...) signature found. Perhaps this is not a valid delegate.",
-                    t.Name
-                ));
-            MethodInfo method = fromType.GetMethod(
+                throw new ArgumentException(string.Format(MissingInvokeMsg, delegateType.Name));
+            return fromType.GetMethod(
                 methodName,
-                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static,
+                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
                 null, CallingConventions.Any,
                 Array.ConvertAll(invokeMethod.GetParameters(), p => p.ParameterType),
                 null
             );
-            return method == null ? null : Delegate.CreateDelegate(t, method) as T;
         }
 
         [MenuItem("Window/Inspector+")]

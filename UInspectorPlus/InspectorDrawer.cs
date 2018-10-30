@@ -126,7 +126,6 @@ namespace UInspectorPlus {
                             },
                             drawHeaderCallback = r => GUI.Label(r, target.ToString(), EditorStyles.miniBoldLabel),
                             onCanAddCallback = l => target != null && !(target as IList).IsFixedSize,
-                            onCanRemoveCallback = arrayHandler.onCanAddCallback.Invoke,
                             onAddCallback = l => {
                                 ReorderableList.defaultBehaviours.DoAddButton(l);
                                 ListAddItem();
@@ -136,6 +135,7 @@ namespace UInspectorPlus {
                                 arrayContentDrawer.RemoveAt(0);
                             }
                         };
+                        arrayHandler.onCanRemoveCallback = arrayHandler.onCanAddCallback.Invoke;
                     }
                     arrayHandler.DoLayoutList();
                 }
