@@ -57,6 +57,11 @@ namespace UInspectorPlus {
             if (GUI.changed)
                 IterateDrawers<ComponentMethodDrawer>(methodDrawer => methodDrawer.Filter = searchText);
             GUILayout.Space(8);
+            EditorGUI.BeginDisabledGroup(instanceIds == null || instanceIds.Length == 0);
+            if (GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash", "Destroy Selection"),
+                EditorStyles.toolbarButton, GUILayout.ExpandWidth(false)))
+                DestroyAll();
+            EditorGUI.EndDisabledGroup();
             GUILayout.EndHorizontal();
             GUI.changed = false;
             scrollPos = GUILayout.BeginScrollView(scrollPos);
@@ -194,6 +199,57 @@ namespace UInspectorPlus {
             foreach (var drawerGroup in drawers.SelectMany(drawer => drawer))
                 drawerGroup.UpdateValues(updateProps);
             Repaint();
+        }
+
+        private void DestroyAll() {
+            int[] instanceIds = this.instanceIds;
+            if (instanceIds == null || instanceIds.Length == 0)
+                return;
+            bool deleteAll = false, showError = true;
+            HashSet<int> remainObjects = new HashSet<int>(instanceIds);
+            foreach (int id in instanceIds) {
+                try {
+                    UnityObject obj = EditorUtility.InstanceIDToObject(id);
+                    if (obj == null) continue;
+                    bool deleteThis = deleteAll;
+                    if (!deleteAll)
+                        switch (EditorUtility.DisplayDialogComplex(
+                            "Destroy object",
+                            string.Format("Destroy {0} {1} (Instance ID: {2})?", obj.GetType(), obj.name, id),
+                            "Yes", "No", "Yes to all"
+                        )) {
+                            case 0: deleteThis = true; break;
+                            case 1: deleteThis = false; break;
+                            case 2: {
+                                deleteAll = true;
+                                deleteThis = true;
+                                break;
+                            }
+                        }
+                    if (deleteThis) {
+                        DestroyImmediate(obj);
+                        remainObjects.Remove(id);
+                    }
+                } catch (Exception ex) {
+                    Debug.LogException(ex);
+                    if (showError)
+                        switch (EditorUtility.DisplayDialogComplex(
+                            string.Format("Error while destroying object {0}", id),
+                            ex.Message,
+                            "Continue", "Stop", "Don't show again"
+                        )) {
+                            case 0: break;
+                            case 1: return;
+                            case 2: showError = false; break;
+                        }
+                }
+            }
+            int[] nextInstanceIds = this.instanceIds;
+            if (nextInstanceIds.Length != remainObjects.Count)
+                this.instanceIds = nextInstanceIds = new int[remainObjects.Count];
+            remainObjects.CopyTo(nextInstanceIds);
+            Selection.instanceIDs = this.instanceIds;
+            OnSelectionChange();
         }
     }
 }
