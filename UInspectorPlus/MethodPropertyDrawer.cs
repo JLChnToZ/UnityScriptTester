@@ -297,6 +297,8 @@ namespace UInspectorPlus {
         }
 
         public void Draw(bool readOnly, Rect? rect = null) {
+            if (target == null && Helper.IsInstanceMember(memberInfo))
+                return;
             readOnly |= isInfoReadonly;
             var referenceModeBtn = (!allowReferenceMode && (
                     currentType == PropertyType.Unknown ||

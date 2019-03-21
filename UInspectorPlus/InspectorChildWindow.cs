@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using System;
+using System.Linq;
 
 namespace UInspectorPlus {
     internal class InspectorChildWindow: EditorWindow {
@@ -10,12 +12,19 @@ namespace UInspectorPlus {
         private bool isReadOnly;
 
         public static void Open(object target, bool showProps, bool showPrivate, bool showObsolete, bool showMethods, bool updateProps, MethodPropertyDrawer parent) {
-            CreateInstance<InspectorChildWindow>().InternalOpen(target, showProps, showPrivate, showObsolete, showMethods, updateProps, parent);
+            CreateInstance<InspectorChildWindow>()
+                .InternalOpen(target, target.GetType(), showProps, showPrivate, showObsolete, showMethods, updateProps, parent);
         }
 
-        private void InternalOpen(object target, bool showProps, bool showPrivate, bool showObsolete, bool showMethods, bool updateProps, MethodPropertyDrawer parent) {
-            titleContent = new GUIContent(string.Format("{0} - Inspector+", target));
-            drawer = new InspectorDrawer(target, true, showProps, showPrivate, showObsolete, showMethods);
+        public static void OpenStatic(Type targetType, bool showProps, bool showPrivate, bool showObsolete, bool showMethods, bool updateProps, MethodPropertyDrawer parent)
+        {
+            CreateInstance<InspectorChildWindow>()
+                .InternalOpen(null, targetType, showProps, showPrivate, showObsolete, showMethods, updateProps, parent);
+        }
+
+        private void InternalOpen(object target, Type targetType, bool showProps, bool showPrivate, bool showObsolete, bool showMethods, bool updateProps, MethodPropertyDrawer parent) {
+            titleContent = new GUIContent(string.Format("{0} - Inspector+", target ?? targetType));
+            drawer = new InspectorDrawer(target, targetType, true, showProps, showPrivate, showObsolete, showMethods);
             drawer.OnRequireRedraw += Repaint;
             this.parent = parent;
             this.updateProps = updateProps;
@@ -57,7 +66,6 @@ namespace UInspectorPlus {
             }
             GUILayout.FlexibleSpace();
             GUILayout.EndScrollView();
-            if (drawer.target == null) Close();
         }
 
         private void OnInspectorUpdate() {
@@ -68,6 +76,12 @@ namespace UInspectorPlus {
 
         private void UpdateValues() {
             drawer.UpdateValues(updateProps);
+        }
+
+        private void IterateDrawers<T>(Action<T> each) where T : IReflectorDrawer
+        {
+            foreach (var methodDrawer in drawer.drawer.OfType<T>())
+                each(methodDrawer);
         }
     }
 }

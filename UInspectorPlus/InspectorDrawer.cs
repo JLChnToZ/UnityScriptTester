@@ -27,18 +27,20 @@ namespace UInspectorPlus {
         private bool allowPrivate;
         private readonly bool allowMethods;
 
-        public InspectorDrawer(object target, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
+        public InspectorDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
             this.target = target;
             drawer = new List<IReflectorDrawer>();
             removingDrawers = new HashSet<IReflectorDrawer>();
-            BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+            BindingFlags flag = BindingFlags.Static | BindingFlags.Public;
+            if (target != null)
+                flag |= BindingFlags.Instance;
             if (allowPrivate = showPrivateFields)
                 flag |= BindingFlags.NonPublic;
-            targetType = target.GetType();
+            this.targetType = targetType;
             elementType = Helper.GetGenericListType(targetType);
             var fields = targetType.GetFields(flag);
             var props = !showProps ? null : targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray();
-            isInternalType = !(target is MonoBehaviour) || Attribute.IsDefined(target.GetType(), typeof(ExecuteInEditMode));
+            isInternalType = !targetType.IsSubclassOf(typeof(MonoBehaviour)) || Attribute.IsDefined(targetType, typeof(ExecuteInEditMode));
             foreach (var field in fields)
                 try {
                     if (!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
@@ -76,12 +78,13 @@ namespace UInspectorPlus {
                 AddMethodMenu();
             foreach (var d in drawer)
                 d.OnRequireRedraw += RequireRedraw;
-            this.shown = Helper.GetState(target, shown);
+            if (target != null)
+                this.shown = Helper.GetState(target, shown);
         }
 
         private void AddMethodMenu() {
             ComponentMethodDrawer newDrawer = null;
-            newDrawer = new ComponentMethodDrawer(target) {
+            newDrawer = new ComponentMethodDrawer(target, targetType) {
                 AllowPrivateFields = allowPrivate,
                 OnClose = () => removingDrawers.Add(newDrawer)
             };
@@ -89,19 +92,18 @@ namespace UInspectorPlus {
         }
 
         public void Draw(bool drawHeader = true, bool readOnly = false) {
-            if (target == null) {
-                EditorGUILayout.InspectorTitlebar(false, null as UnityObject);
-                return;
-            }
             if (drawHeader) {
                 shown = EditorGUILayout.InspectorTitlebar(shown, target as UnityObject);
-                Helper.StoreState(target, shown);
+                if (target != null)
+                    Helper.StoreState(target, shown);
                 if (!shown)
                     return;
             }
             EditorGUI.indentLevel++;
             EditorGUILayout.BeginVertical();
-            if (elementType != null) {
+            if (target is Type && GUILayout.Button(string.Format("Inspect Static Members of {0}...", target)))
+                InspectorChildWindow.OpenStatic(target as Type, true, allowPrivate, false, true, false, null);
+            else if (target != null && elementType != null) {
                 if (targetType == typeof(byte[])) {
                     if (hexEdit == null)
                         hexEdit = new HexEdit();
@@ -141,8 +143,7 @@ namespace UInspectorPlus {
                 }
             }
             if (removingDrawers.Count > 0) {
-                foreach (var d in removingDrawers)
-                    drawer.Remove(d);
+                drawer.RemoveAll(removingDrawers.Contains);
                 removingDrawers.Clear();
             }
             foreach (var item in drawer) {

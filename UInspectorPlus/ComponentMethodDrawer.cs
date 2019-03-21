@@ -22,7 +22,7 @@ namespace UInspectorPlus {
         private MethodPropertyDrawer result;
         private Exception thrownException;
         private string filter;
-        private readonly Type ctorType;
+        private readonly Type ctorType, targetType;
         private bool titleFolded = true, paramsFolded = true, resultFolded = true,
             drawHeader = true, privateFields = true, obsolete = true;
         private MethodMode mode = 0;
@@ -83,9 +83,10 @@ namespace UInspectorPlus {
             showResultSelector.valueChanged.AddListener(RequireRedraw);
         }
 
-        public ComponentMethodDrawer(object target)
+        public ComponentMethodDrawer(object target, Type type = null)
             : this() {
             component = target;
+            targetType = type ?? target.GetType();
             drawHeader = false;
             showMethodSelector.value = true;
             InitComponentMethods();
@@ -113,7 +114,8 @@ namespace UInspectorPlus {
                 return;
             switch (mode) {
                 case MethodMode.Constructor: if (ctorType == null) return; break;
-                case MethodMode.Method: default: if (component == null) return; break;
+                case MethodMode.Method: if (component == null && Helper.IsInstanceMember(selectedMember)) return; break;
+                default: if (component == null) return; break;
             }
             try {
                 thrownException = null;
@@ -165,12 +167,10 @@ namespace UInspectorPlus {
 
         public void Draw() {
             if (drawHeader) {
-                EditorGUI.BeginDisabledGroup(component == null);
-                titleFolded = EditorGUILayout.InspectorTitlebar(titleFolded, component as UnityObject) || component == null;
-                EditorGUI.EndDisabledGroup();
+                titleFolded = EditorGUILayout.InspectorTitlebar(titleFolded, component as UnityObject);
             }
             GUI.changed = false;
-            if (component == null || titleFolded || !drawHeader) {
+            if (titleFolded || !drawHeader) {
                 if (drawHeader) {
                     EditorGUI.indentLevel++;
                     EditorGUILayout.BeginVertical();
@@ -179,7 +179,7 @@ namespace UInspectorPlus {
                 if (mode != MethodMode.Indexer || result == null)
                     EditorGUILayout.Space();
                 if (mode == MethodMode.Constructor ||
-                    (mode == MethodMode.Method && component != null) ||
+                    (mode == MethodMode.Method && (component != null || !Helper.IsInstanceMember(selectedMember))) ||
                     (mode == MethodMode.Indexer && component != null && result == null)) {
                     if (GUI.changed) {
                         InitComponentMethods();
@@ -223,7 +223,9 @@ namespace UInspectorPlus {
         }
 
         private void AddComponentMethod(Type type) {
-            BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+            BindingFlags flag = BindingFlags.Static | BindingFlags.Public;
+            if (component != null)
+                flag |= BindingFlags.Instance;
             if (privateFields)
                 flag |= BindingFlags.NonPublic;
             methods.AddRange(
@@ -245,11 +247,14 @@ namespace UInspectorPlus {
             );
         }
 
-        private void AddComponentMethod(object target) {
-            BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+        private void AddComponentMethod(object target, Type type = null) {
+            BindingFlags flag = BindingFlags.Static | BindingFlags.Public;
             if (privateFields)
                 flag |= BindingFlags.NonPublic;
-            Type type = target.GetType();
+            if (target != null)
+                flag |= BindingFlags.Instance;
+            if (type == null)
+                type = target.GetType();
             methods.AddRange(
                 from m in type.GetProperties(flag)
                 where FilterMemberInfo(m) && m.GetIndexParameters().Length > 0
@@ -278,7 +283,7 @@ namespace UInspectorPlus {
                     methodNames = methods.Select((m, i) => GetMethodNameFormatted(m, i)).ToArray();
                     break;
                 default:
-                    AddComponentMethod(component);
+                    AddComponentMethod(component, targetType);
                     break;
             }
             if (drawHeader) {
@@ -406,6 +411,8 @@ namespace UInspectorPlus {
                 EditorGUILayout.BeginVertical();
                 if (mode != MethodMode.Indexer && (selectedMember as MethodInfo).ContainsGenericParameters)
                     EditorGUILayout.HelpBox("Generic method is not supported.", MessageType.Warning);
+                if (mode != MethodMode.Indexer && component == null && Helper.IsInstanceMember(selectedMember))
+                    EditorGUILayout.HelpBox("Method requires an exists instance.", MessageType.Warning);
                 else {
                     if (parameterInfo.Length == 0)
                         EditorGUILayout.HelpBox("There is no parameters required for this method.", MessageType.Info);

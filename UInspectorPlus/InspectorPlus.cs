@@ -11,7 +11,9 @@ namespace UInspectorPlus {
             "Unless you know exactly what you are doing, do not use this plugin " +
             "or you may likely to corrupt your project or even crashes the editor!";
         private readonly List<InspectorDrawer[]> drawers = new List<InspectorDrawer[]>();
+        private readonly TypeMatcher typeMatcher = new TypeMatcher();
         private string searchText;
+        private bool shouldSearchTypes;
         private Vector2 scrollPos;
         private bool initialized;
         private bool autoUpdateValues;
@@ -27,6 +29,11 @@ namespace UInspectorPlus {
             titleContent = new GUIContent("Inspector+", EditorGUIUtility.FindTexture("UnityEditor.InspectorWindow"));
             Initialize();
             OnFocus();
+            typeMatcher.OnRequestRedraw += Repaint;
+        }
+
+        private void OnDisable() {
+            typeMatcher.OnRequestRedraw -= Repaint;
         }
 
         private void Initialize() {
@@ -57,6 +64,8 @@ namespace UInspectorPlus {
             if (GUI.changed)
                 IterateDrawers<ComponentMethodDrawer>(methodDrawer => methodDrawer.Filter = searchText);
             GUILayout.Space(8);
+            if (shouldSearchTypes = GUILayout.Toggle(shouldSearchTypes, EditorGUIUtility.IconContent("d_FilterByType", "Search Types"), EditorStyles.toolbarButton, GUILayout.ExpandWidth(false)))
+                typeMatcher.SearchText = searchText;
             EditorGUI.BeginDisabledGroup(instanceIds == null || instanceIds.Length == 0);
             if (GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash", "Destroy Selection"),
                 EditorStyles.toolbarButton, GUILayout.ExpandWidth(false)))
@@ -70,6 +79,8 @@ namespace UInspectorPlus {
                 drawer.searchText = searchText;
                 drawer.Draw();
             }
+            if (shouldSearchTypes)
+                typeMatcher.Draw();
             GUILayout.FlexibleSpace();
             GUILayout.Space(EditorGUIUtility.singleLineHeight / 2);
             GUILayout.EndScrollView();
@@ -181,7 +192,7 @@ namespace UInspectorPlus {
         }
 
         private InspectorDrawer CreateDrawer(UnityObject target, bool shown) {
-            var drawer = new InspectorDrawer(target, shown, showProps, privateFields, showObsolete, showMethods);
+            var drawer = new InspectorDrawer(target, target.GetType(), shown, showProps, privateFields, showObsolete, showMethods);
             drawer.OnRequireRedraw += Repaint;
             return drawer;
         }

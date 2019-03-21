@@ -162,6 +162,21 @@ namespace UInspectorPlus {
             );
         }
 
+        internal static bool IsInstanceMember(MemberInfo member, bool defaultResult = false) {
+            var field = member as FieldInfo;
+            if (field != null) return !field.IsStatic;
+            var method = member as MethodBase;
+            var property = member as PropertyInfo;
+            if (method == null && property != null) {
+                if (property.CanWrite)
+                    method = property.GetSetMethod();
+                else if(property.CanRead)
+                    method = property.GetGetMethod();
+            }
+            if (method != null) return !method.IsStatic;
+            return defaultResult;
+        }
+
         internal static string GetMemberName(MemberInfo member, bool simplifed = false, bool appendMemberName = true) {
             var ret = new StringBuilder();
             var props = new List<string>();
