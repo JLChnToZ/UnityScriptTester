@@ -55,19 +55,12 @@ namespace UInspectorPlus {
         }
 
         private void InitSearch() {
-            for(int retries = 0; retries < 2; retries++) {
-                try {
-                    if(searchedTypes.Count <= 0)
-                        searchedTypes.UnionWith(
-                            from assembly in AppDomain.CurrentDomain.GetAssemblies()
-                            from type in assembly.GetTypes()
-                            select type
-                        );
-                    break;
-                } catch(Exception ex) {
-                    Helper.PrintExceptionsWithInner(ex);
-                }
-            }
+            if(searchedTypes.Count > 0) return;
+            searchedTypes.UnionWith(
+                from assembly in AppDomain.CurrentDomain.GetAssemblies()
+                from type in Helper.LooseGetTypes(assembly)
+                select type
+            );
         }
 
         private void DoSearch() {

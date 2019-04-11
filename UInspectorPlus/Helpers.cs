@@ -604,6 +604,21 @@ namespace UInspectorPlus {
             );
         }
 
+        public static IEnumerable<Type> LooseGetTypes(Assembly assembly) {
+            for(int retries = 0; retries < 2; retries++)
+                try {
+                    return assembly.GetTypes();
+                } catch(ReflectionTypeLoadException typeLoadEx) {
+                    // Retry first!
+                    if(retries < 1) continue;
+                    // Some types don't like to be loaded, then ignore them.
+                    return from type in typeLoadEx.Types
+                           where type != null
+                           select type;
+                }
+            return null; // Should not reach here
+        }
+
         [MenuItem("Window/Inspector+")]
         public static void ShowInspectorPlus() {
             EditorWindow.GetWindow(typeof(InspectorPlus));
