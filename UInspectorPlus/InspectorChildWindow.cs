@@ -36,7 +36,7 @@ namespace UInspectorPlus {
             GUILayout.BeginHorizontal(EditorStyles.toolbar);
             updateProps = GUILayout.Toggle(updateProps, "Update Props", EditorStyles.toolbarButton);
             GUILayout.Space(8);
-            drawer.searchText = Helper.ToolbarSearchField(drawer.searchText);
+            drawer.searchText = Helper.ToolbarSearchField(drawer.searchText ?? string.Empty);
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
             scrollPos = GUILayout.BeginScrollView(scrollPos);

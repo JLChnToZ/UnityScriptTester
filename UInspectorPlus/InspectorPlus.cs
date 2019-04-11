@@ -61,7 +61,7 @@ namespace UInspectorPlus {
             GUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUI.changed = false;
             GUILayout.Space(8);
-            searchText = Helper.ToolbarSearchField(searchText, searchModes, ref searchMode);
+            searchText = Helper.ToolbarSearchField(searchText ?? string.Empty, searchModes, ref searchMode);
             GUILayout.Space(8);
             EditorGUI.BeginDisabledGroup(instanceIds == null || instanceIds.Length == 0 || searchMode != 0);
             if(GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash", "Destroy Selection"),
