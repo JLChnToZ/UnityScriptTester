@@ -154,6 +154,7 @@ namespace UInspectorPlus {
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
                     EditorGUILayout.BeginVertical();
+                    methodDrawer.Filter = searchText;
                     methodDrawer.Draw();
                     EditorGUILayout.EndVertical();
                     EditorGUILayout.EndHorizontal();

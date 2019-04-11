@@ -104,6 +104,7 @@ namespace UInspectorPlus {
         public string Filter {
             get { return filter; }
             set {
+                if(filter == value) return;
                 filter = value;
                 InitComponentMethods(false);
             }

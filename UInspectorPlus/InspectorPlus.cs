@@ -12,8 +12,9 @@ namespace UInspectorPlus {
             "or you may likely to corrupt your project or even crashes the editor!";
         private readonly List<InspectorDrawer[]> drawers = new List<InspectorDrawer[]>();
         private readonly TypeMatcher typeMatcher = new TypeMatcher();
+        private static readonly string[] searchModes = new[] { "Selected Component Members", "Types" };
         private string searchText;
-        private bool shouldSearchTypes;
+        private int searchMode = 0;
         private Vector2 scrollPos;
         private bool initialized;
         private bool autoUpdateValues;
@@ -36,6 +37,10 @@ namespace UInspectorPlus {
             typeMatcher.OnRequestRedraw -= Repaint;
         }
 
+        private void OnDestroy() {
+            typeMatcher.Dispose();
+        }
+
         private void Initialize() {
             if(initialized) return;
             autoUpdateValues = EditorPrefs.GetBool("inspectorplus_autoupdate", true);
@@ -56,17 +61,9 @@ namespace UInspectorPlus {
             GUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUI.changed = false;
             GUILayout.Space(8);
-            searchText = EditorGUILayout.TextField(searchText, Helper.GetGUIStyle("ToolbarSeachTextField"));
-            if(GUILayout.Button(GUIContent.none, Helper.GetGUIStyle(string.IsNullOrEmpty(searchText) ? "ToolbarSeachCancelButtonEmpty" : "ToolbarSeachCancelButton"))) {
-                searchText = string.Empty;
-                GUI.FocusControl(null);
-            }
-            if(GUI.changed)
-                IterateDrawers<ComponentMethodDrawer>(methodDrawer => methodDrawer.Filter = searchText);
+            searchText = Helper.ToolbarSearchField(searchText, searchModes, ref searchMode);
             GUILayout.Space(8);
-            if(shouldSearchTypes = GUILayout.Toggle(shouldSearchTypes, EditorGUIUtility.IconContent("d_FilterByType", "Search Types"), EditorStyles.toolbarButton, GUILayout.ExpandWidth(false)))
-                typeMatcher.SearchText = searchText;
-            EditorGUI.BeginDisabledGroup(instanceIds == null || instanceIds.Length == 0);
+            EditorGUI.BeginDisabledGroup(instanceIds == null || instanceIds.Length == 0 || searchMode != 0);
             if(GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash", "Destroy Selection"),
                 EditorStyles.toolbarButton, GUILayout.ExpandWidth(false)))
                 DestroyAll();
@@ -75,12 +72,18 @@ namespace UInspectorPlus {
             GUI.changed = false;
             scrollPos = GUILayout.BeginScrollView(scrollPos);
             EditorGUILayout.HelpBox(description, MessageType.Warning);
-            foreach(var drawer in drawers.SelectMany(drawer => drawer)) {
-                drawer.searchText = searchText;
-                drawer.Draw();
+            switch(searchMode) {
+                case 0:
+                    foreach(var drawer in drawers.SelectMany(drawer => drawer)) {
+                        drawer.searchText = searchText;
+                        drawer.Draw();
+                    }
+                    break;
+                case 1:
+                    typeMatcher.SearchText = searchText;
+                    typeMatcher.Draw();
+                    break;
             }
-            if(shouldSearchTypes)
-                typeMatcher.Draw();
             GUILayout.FlexibleSpace();
             GUILayout.Space(EditorGUIUtility.singleLineHeight / 2);
             GUILayout.EndScrollView();

@@ -36,18 +36,7 @@ namespace UInspectorPlus {
             GUILayout.BeginHorizontal(EditorStyles.toolbar);
             updateProps = GUILayout.Toggle(updateProps, "Update Props", EditorStyles.toolbarButton);
             GUILayout.Space(8);
-            drawer.searchText = EditorGUILayout.TextField(drawer.searchText, Helper.GetGUIStyle("ToolbarSeachTextField"));
-            if(GUILayout.Button(
-                GUIContent.none,
-                Helper.GetGUIStyle(
-                    string.IsNullOrEmpty(drawer.searchText) ?
-                    "ToolbarSeachCancelButtonEmpty" :
-                    "ToolbarSeachCancelButton"
-                )
-            )) {
-                drawer.searchText = string.Empty;
-                GUI.FocusControl(null);
-            }
+            drawer.searchText = Helper.ToolbarSearchField(drawer.searchText);
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
             scrollPos = GUILayout.BeginScrollView(scrollPos);

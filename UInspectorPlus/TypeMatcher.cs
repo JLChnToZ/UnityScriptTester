@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -6,10 +7,12 @@ using UnityEditor;
 using System.Threading;
 
 namespace UInspectorPlus {
-    internal class TypeMatcher {
+    internal class TypeMatcher: IDisposable {
         public Thread bgWorker;
         public event Action OnRequestRedraw;
         private readonly HashSet<Type> searchedTypes = new HashSet<Type>();
+        private readonly List<Assembly> pendingAssemblies = new List<Assembly>();
+        private AppDomain currentDomain;
         private string searchText = string.Empty;
         private Type[] searchTypeResult = null;
 
@@ -55,12 +58,37 @@ namespace UInspectorPlus {
         }
 
         private void InitSearch() {
-            if(searchedTypes.Count > 0) return;
-            searchedTypes.UnionWith(
-                from assembly in AppDomain.CurrentDomain.GetAssemblies()
-                from type in Helper.LooseGetTypes(assembly)
-                select type
-            );
+            if(currentDomain == null) {
+                currentDomain = AppDomain.CurrentDomain;
+                searchedTypes.UnionWith(
+                    from assembly in currentDomain.GetAssemblies()
+                    from type in Helper.LooseGetTypes(assembly)
+                    select type
+                );
+                currentDomain.AssemblyLoad += OnAssemblyLoad;
+                currentDomain.DomainUnload += OnAppDomainUnload;
+            }
+            if(pendingAssemblies.Count > 0) {
+                var buffer = pendingAssemblies.ToArray();
+                pendingAssemblies.Clear();
+                searchedTypes.UnionWith(
+                    from assembly in buffer
+                    from type in Helper.LooseGetTypes(assembly)
+                    select type
+                );
+            }
+        }
+
+        private void OnAssemblyLoad(object sender, AssemblyLoadEventArgs e) {
+            pendingAssemblies.Add(e.LoadedAssembly);
+        }
+
+        private void OnAppDomainUnload(object sender, EventArgs e) {
+            currentDomain = null;
+        }
+
+        ~TypeMatcher() {
+            Dispose();
         }
 
         private void DoSearch() {
@@ -94,6 +122,25 @@ namespace UInspectorPlus {
         private void RequestRedraw() {
             EditorApplication.update -= RequestRedraw;
             if(OnRequestRedraw != null) OnRequestRedraw.Invoke();
+        }
+
+        public void Dispose() {
+            try {
+                if(currentDomain != null) {
+                    currentDomain.AssemblyLoad -= OnAssemblyLoad;
+                    currentDomain.DomainUnload -= OnAppDomainUnload;
+                }
+            } catch {
+            } finally {
+                currentDomain = null;
+            }
+            try {
+                if(bgWorker != null && bgWorker.IsAlive)
+                    bgWorker.Abort();
+            } catch {
+            } finally {
+                bgWorker = null;
+            }
         }
     }
 }

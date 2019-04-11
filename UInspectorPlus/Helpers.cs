@@ -73,9 +73,15 @@ namespace UInspectorPlus {
         // Delegate hacks to access the internal methods
         private delegate Gradient DoGradientField(GUIContent guiContent, Rect rect, Gradient gradient);
         private static readonly DoGradientField doGradientField = GetDelegate<EditorGUI, DoGradientField>("GradientField");
-
         private delegate Gradient DoLayoutGradientField(GUIContent guiContent, Gradient gradient, params GUILayoutOption[] options);
         private static readonly DoLayoutGradientField doLayoutGradiantField = GetDelegate<EditorGUILayout, DoLayoutGradientField>("GradientField");
+
+        
+        private delegate string DoToolbarSearchField(string text, params GUILayoutOption[] options);
+        private static readonly DoToolbarSearchField doToolbarSearchField = GetDelegate<EditorGUILayout, DoToolbarSearchField>("ToolbarSearchField");
+
+        private delegate string DoToolbarDropDownSearchField(string text, string[] searchModes, ref int searchMode, params GUILayoutOption[] options);
+        private static readonly DoToolbarDropDownSearchField doToolbarDropDownSearchField = GetDelegate<EditorGUILayout, DoToolbarDropDownSearchField>("ToolbarSearchField");
 
         private static readonly Hashtable storedState = new Hashtable();
 
@@ -431,6 +437,14 @@ namespace UInspectorPlus {
 
         internal static Gradient GradientField(GUIContent label, Gradient value, params GUILayoutOption[] options) {
             return doLayoutGradiantField(label, value, options);
+        }
+
+        internal static string ToolbarSearchField(string text, params GUILayoutOption[] options) {
+            return doToolbarSearchField(text, options);
+        }
+
+        internal static string ToolbarSearchField(string text, string[] searchModes, ref int searchMode, params GUILayoutOption[] options) {
+            return doToolbarDropDownSearchField(text, searchModes, ref searchMode, options);
         }
 
         private static void ClickObject(UnityObject obj) {
