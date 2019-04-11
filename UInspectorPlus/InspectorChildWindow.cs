@@ -16,8 +16,7 @@ namespace UInspectorPlus {
                 .InternalOpen(target, target.GetType(), showProps, showPrivate, showObsolete, showMethods, updateProps, parent);
         }
 
-        public static void OpenStatic(Type targetType, bool showProps, bool showPrivate, bool showObsolete, bool showMethods, bool updateProps, MethodPropertyDrawer parent)
-        {
+        public static void OpenStatic(Type targetType, bool showProps, bool showPrivate, bool showObsolete, bool showMethods, bool updateProps, MethodPropertyDrawer parent) {
             CreateInstance<InspectorChildWindow>()
                 .InternalOpen(null, targetType, showProps, showPrivate, showObsolete, showMethods, updateProps, parent);
         }
@@ -38,7 +37,7 @@ namespace UInspectorPlus {
             updateProps = GUILayout.Toggle(updateProps, "Update Props", EditorStyles.toolbarButton);
             GUILayout.Space(8);
             drawer.searchText = EditorGUILayout.TextField(drawer.searchText, Helper.GetGUIStyle("ToolbarSeachTextField"));
-            if (GUILayout.Button(
+            if(GUILayout.Button(
                 GUIContent.none,
                 Helper.GetGUIStyle(
                     string.IsNullOrEmpty(drawer.searchText) ?
@@ -54,13 +53,13 @@ namespace UInspectorPlus {
             scrollPos = GUILayout.BeginScrollView(scrollPos);
             EditorGUILayout.Space();
             drawer.Draw(false, isReadOnly);
-            if (drawer.changed) {
+            if(drawer.changed) {
                 drawer.changed = false;
-                if (parent != null && !parent.IsReadOnly &&
+                if(parent != null && !parent.IsReadOnly &&
                     ((parent.requiredType != null && parent.requiredType.IsValueType) || parent.Value != drawer.target))
-                    if (!Helper.AssignValue(parent.Info, parent.Target, drawer.target)) {
+                    if(!Helper.AssignValue(parent.Info, parent.Target, drawer.target)) {
                         object reverted;
-                        if (Helper.FetchValue(parent.Info, parent.Target, out reverted))
+                        if(Helper.FetchValue(parent.Info, parent.Target, out reverted))
                             drawer.target = reverted;
                     }
             }
@@ -69,7 +68,7 @@ namespace UInspectorPlus {
         }
 
         private void OnInspectorUpdate() {
-            if (EditorGUIUtility.editingTextField)
+            if(EditorGUIUtility.editingTextField)
                 return;
             UpdateValues();
         }
@@ -78,9 +77,8 @@ namespace UInspectorPlus {
             drawer.UpdateValues(updateProps);
         }
 
-        private void IterateDrawers<T>(Action<T> each) where T : IReflectorDrawer
-        {
-            foreach (var methodDrawer in drawer.drawer.OfType<T>())
+        private void IterateDrawers<T>(Action<T> each) where T : IReflectorDrawer {
+            foreach(var methodDrawer in drawer.drawer.OfType<T>())
                 each(methodDrawer);
         }
     }

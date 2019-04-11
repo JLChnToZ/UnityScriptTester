@@ -12,7 +12,7 @@ namespace UInspectorPlus {
 
         public float Height {
             get {
-                if (data == null) return 0;
+                if(data == null) return 0;
                 return (data.Length + columns) / columns * (EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing);
             }
         }
@@ -24,7 +24,7 @@ namespace UInspectorPlus {
         public void Draw(Rect viewport) {
             float height = EditorGUIUtility.singleLineHeight;
             float padHeight = height + EditorGUIUtility.standardVerticalSpacing;
-            if (data != null) {
+            if(data != null) {
                 temp.text = data.Length.ToString("X8");
                 Vector2 labelSize = GUI.skin.label.CalcSize(temp);
                 Rect contentRect = new Rect(0, 0, labelSize.x + (columns * 1.7F + 2) * height, Height);
@@ -32,10 +32,10 @@ namespace UInspectorPlus {
                 scrollPos = GUI.BeginScrollView(viewport, scrollPos, contentRect);
                 bool changed = GUI.changed;
                 GUI.changed = false;
-                for (int start = Mathf.FloorToInt(scrollPos.y / padHeight) * columns,
+                for(int start = Mathf.FloorToInt(scrollPos.y / padHeight) * columns,
                     end = Math.Min(data.Length, start + Mathf.CeilToInt(viewport.height / padHeight) * columns),
                     col = start; col < end; col++) {
-                    if (col % columns == 0) {
+                    if(col % columns == 0) {
                         temp.text = col.ToString("X8");
                         GUI.Label(new Rect(0, col / columns * padHeight, labelSize.x, labelSize.y), temp);
                     }
@@ -48,11 +48,11 @@ namespace UInspectorPlus {
                         data[col].ToString("X2"),
                         2, GUI.skin.label
                     );
-                    if (GUI.changed) {
+                    if(GUI.changed) {
                         GUI.changed = false;
                         changed = true;
                         int val;
-                        if (int.TryParse(newValue, NumberStyles.HexNumber, null, out val))
+                        if(int.TryParse(newValue, NumberStyles.HexNumber, null, out val))
                             data[col] = unchecked((byte)val);
                     }
                     string newStr = GUI.TextField(
@@ -64,7 +64,7 @@ namespace UInspectorPlus {
                         Byte2String(data[col]),
                         1, GUI.skin.label
                     );
-                    if (GUI.changed) {
+                    if(GUI.changed) {
                         GUI.changed = false;
                         changed = true;
                         data[col] = newStr.Length > 0 ? unchecked((byte)newStr[0]) : (byte)0;
@@ -76,8 +76,8 @@ namespace UInspectorPlus {
         }
 
         private static string Byte2String(byte b) {
-            if (b < 32) return ((char)(b | 0x2400)).ToString();
-            if (b >= 127) return ".";
+            if(b < 32) return ((char)(b | 0x2400)).ToString();
+            if(b >= 127) return ".";
             return ((char)b).ToString();
         }
     }

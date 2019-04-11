@@ -37,7 +37,7 @@ namespace UInspectorPlus {
         }
 
         private void Initialize() {
-            if (initialized) return;
+            if(initialized) return;
             autoUpdateValues = EditorPrefs.GetBool("inspectorplus_autoupdate", true);
             privateFields = EditorPrefs.GetBool("inspectorplus_private", true);
             forceUpdateProps = EditorPrefs.GetBool("inspectorplus_editupdate", false);
@@ -57,17 +57,17 @@ namespace UInspectorPlus {
             GUI.changed = false;
             GUILayout.Space(8);
             searchText = EditorGUILayout.TextField(searchText, Helper.GetGUIStyle("ToolbarSeachTextField"));
-            if (GUILayout.Button(GUIContent.none, Helper.GetGUIStyle(string.IsNullOrEmpty(searchText) ? "ToolbarSeachCancelButtonEmpty" : "ToolbarSeachCancelButton"))) {
+            if(GUILayout.Button(GUIContent.none, Helper.GetGUIStyle(string.IsNullOrEmpty(searchText) ? "ToolbarSeachCancelButtonEmpty" : "ToolbarSeachCancelButton"))) {
                 searchText = string.Empty;
                 GUI.FocusControl(null);
             }
-            if (GUI.changed)
+            if(GUI.changed)
                 IterateDrawers<ComponentMethodDrawer>(methodDrawer => methodDrawer.Filter = searchText);
             GUILayout.Space(8);
-            if (shouldSearchTypes = GUILayout.Toggle(shouldSearchTypes, EditorGUIUtility.IconContent("d_FilterByType", "Search Types"), EditorStyles.toolbarButton, GUILayout.ExpandWidth(false)))
+            if(shouldSearchTypes = GUILayout.Toggle(shouldSearchTypes, EditorGUIUtility.IconContent("d_FilterByType", "Search Types"), EditorStyles.toolbarButton, GUILayout.ExpandWidth(false)))
                 typeMatcher.SearchText = searchText;
             EditorGUI.BeginDisabledGroup(instanceIds == null || instanceIds.Length == 0);
-            if (GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash", "Destroy Selection"),
+            if(GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash", "Destroy Selection"),
                 EditorStyles.toolbarButton, GUILayout.ExpandWidth(false)))
                 DestroyAll();
             EditorGUI.EndDisabledGroup();
@@ -75,11 +75,11 @@ namespace UInspectorPlus {
             GUI.changed = false;
             scrollPos = GUILayout.BeginScrollView(scrollPos);
             EditorGUILayout.HelpBox(description, MessageType.Warning);
-            foreach (var drawer in drawers.SelectMany(drawer => drawer)) {
+            foreach(var drawer in drawers.SelectMany(drawer => drawer)) {
                 drawer.searchText = searchText;
                 drawer.Draw();
             }
-            if (shouldSearchTypes)
+            if(shouldSearchTypes)
                 typeMatcher.Draw();
             GUILayout.FlexibleSpace();
             GUILayout.Space(EditorGUIUtility.singleLineHeight / 2);
@@ -87,21 +87,21 @@ namespace UInspectorPlus {
         }
 
         private void OnInspectorUpdate() {
-            if (!autoUpdateValues || EditorGUIUtility.editingTextField)
+            if(!autoUpdateValues || EditorGUIUtility.editingTextField)
                 return;
             UpdateValues();
         }
 
         private void ShowButton(Rect rect) {
             GUI.Toggle(rect, locked, GUIContent.none, Helper.GetGUIStyle("IN LockButton"));
-            if (GUI.changed)
+            if(GUI.changed)
                 TriggerLock();
             GUI.changed = false;
         }
 
         void IHasCustomMenu.AddItemsToMenu(GenericMenu menu) {
             menu.AddItem(new GUIContent("Refresh"), false, RefreshList);
-            if (autoUpdateValues)
+            if(autoUpdateValues)
                 menu.AddDisabledItem(new GUIContent("Update Values", "Auto Updating"));
             else
                 menu.AddItem(new GUIContent("Update Values"), false, UpdateValues);
@@ -148,22 +148,22 @@ namespace UInspectorPlus {
 
         private void TriggerLock() {
             locked = !locked;
-            if (!locked)
+            if(!locked)
                 OnSelectionChange();
             EditorPrefs.SetBool("inspectorplus_lock", locked);
         }
 
         private void OnSelectionChange() {
-            if (!locked)
+            if(!locked)
                 instanceIds = Selection.instanceIDs;
             var pendingRemoveDrawers = new List<InspectorDrawer[]>();
             var pendingAddDrawers = new List<InspectorDrawer[]>();
-            foreach (var drawer in drawers)
-                if (drawer.Length <= 0 || drawer[0].target == null || !instanceIds.Contains(Helper.ObjIdOrHashCode(drawer[0].target)))
+            foreach(var drawer in drawers)
+                if(drawer.Length <= 0 || drawer[0].target == null || !instanceIds.Contains(Helper.ObjIdOrHashCode(drawer[0].target)))
                     pendingRemoveDrawers.Add(drawer);
             drawers.RemoveAll(pendingRemoveDrawers.Contains);
-            foreach (var instanceID in instanceIds)
-                if (drawers.FindIndex(drawer => Helper.ObjIdOrHashCode(drawer[0].target) == instanceID) < 0)
+            foreach(var instanceID in instanceIds)
+                if(drawers.FindIndex(drawer => Helper.ObjIdOrHashCode(drawer[0].target) == instanceID) < 0)
                     pendingAddDrawers.Add(CreateDrawers(instanceID));
             drawers.AddRange(pendingAddDrawers);
             UpdateValues();
@@ -171,20 +171,20 @@ namespace UInspectorPlus {
 
         private InspectorDrawer[] CreateDrawers(int instanceID) {
             var target = EditorUtility.InstanceIDToObject(instanceID);
-            if (target == null)
+            if(target == null)
                 return new InspectorDrawer[0];
             var ret = new List<InspectorDrawer>();
             try {
                 ret.Add(CreateDrawer(target, true));
-            } catch (Exception ex) {
+            } catch(Exception ex) {
                 Debug.LogException(ex);
             }
             var gameObject = target as GameObject;
-            if (gameObject != null)
-                foreach (var component in gameObject.GetComponents(typeof(Component))) {
+            if(gameObject != null)
+                foreach(var component in gameObject.GetComponents(typeof(Component))) {
                     try {
                         ret.Add(CreateDrawer(component, false));
-                    } catch (Exception ex) {
+                    } catch(Exception ex) {
                         Debug.LogException(ex);
                     }
                 }
@@ -198,7 +198,7 @@ namespace UInspectorPlus {
         }
 
         private void IterateDrawers<T>(Action<T> each) where T : IReflectorDrawer {
-            foreach (var methodDrawer in drawers.SelectMany(drawer => drawer).SelectMany(drawer => drawer.drawer).OfType<T>())
+            foreach(var methodDrawer in drawers.SelectMany(drawer => drawer).SelectMany(drawer => drawer.drawer).OfType<T>())
                 each(methodDrawer);
         }
 
@@ -207,24 +207,24 @@ namespace UInspectorPlus {
         }
 
         private void UpdateValues(bool updateProps) {
-            foreach (var drawerGroup in drawers.SelectMany(drawer => drawer))
+            foreach(var drawerGroup in drawers.SelectMany(drawer => drawer))
                 drawerGroup.UpdateValues(updateProps);
             Repaint();
         }
 
         private void DestroyAll() {
             int[] instanceIds = this.instanceIds;
-            if (instanceIds == null || instanceIds.Length == 0)
+            if(instanceIds == null || instanceIds.Length == 0)
                 return;
             bool deleteAll = false, showError = true;
             HashSet<int> remainObjects = new HashSet<int>(instanceIds);
-            foreach (int id in instanceIds) {
+            foreach(int id in instanceIds) {
                 try {
                     UnityObject obj = EditorUtility.InstanceIDToObject(id);
-                    if (obj == null) continue;
+                    if(obj == null) continue;
                     bool deleteThis = deleteAll;
-                    if (!deleteAll)
-                        switch (EditorUtility.DisplayDialogComplex(
+                    if(!deleteAll)
+                        switch(EditorUtility.DisplayDialogComplex(
                             "Destroy object",
                             string.Format("Destroy {0} {1} (Instance ID: {2})?", obj.GetType(), obj.name, id),
                             "Yes", "No", "Yes to all"
@@ -237,14 +237,14 @@ namespace UInspectorPlus {
                                 break;
                             }
                         }
-                    if (deleteThis) {
+                    if(deleteThis) {
                         DestroyImmediate(obj);
                         remainObjects.Remove(id);
                     }
-                } catch (Exception ex) {
+                } catch(Exception ex) {
                     Debug.LogException(ex);
-                    if (showError)
-                        switch (EditorUtility.DisplayDialogComplex(
+                    if(showError)
+                        switch(EditorUtility.DisplayDialogComplex(
                             string.Format("Error while destroying object {0}", id),
                             ex.Message,
                             "Continue", "Stop", "Don't show again"
@@ -256,7 +256,7 @@ namespace UInspectorPlus {
                 }
             }
             int[] nextInstanceIds = this.instanceIds;
-            if (nextInstanceIds.Length != remainObjects.Count)
+            if(nextInstanceIds.Length != remainObjects.Count)
                 this.instanceIds = nextInstanceIds = new int[remainObjects.Count];
             remainObjects.CopyTo(nextInstanceIds);
             Selection.instanceIDs = this.instanceIds;
