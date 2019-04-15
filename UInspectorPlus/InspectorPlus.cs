@@ -13,6 +13,7 @@ namespace UInspectorPlus {
         private readonly List<InspectorDrawer[]> drawers = new List<InspectorDrawer[]>();
         private readonly TypeMatcher typeMatcher = new TypeMatcher();
         private static readonly string[] searchModes = new[] { "Selected Component Members", "Types" };
+        private static readonly string[] titles = new[] { "Inspector+", "Type Search" };
         private string searchText;
         private int searchMode = 0;
         private Vector2 scrollPos;
@@ -27,7 +28,7 @@ namespace UInspectorPlus {
         private int[] instanceIds = new int[0];
 
         private void OnEnable() {
-            titleContent = new GUIContent("Inspector+", EditorGUIUtility.FindTexture("UnityEditor.InspectorWindow"));
+            titleContent = new GUIContent(titles[searchMode], EditorGUIUtility.FindTexture("UnityEditor.InspectorWindow"));
             Initialize();
             OnFocus();
             typeMatcher.OnRequestRedraw += Repaint;
@@ -62,6 +63,8 @@ namespace UInspectorPlus {
             GUI.changed = false;
             GUILayout.Space(8);
             searchText = Helper.ToolbarSearchField(searchText ?? string.Empty, searchModes, ref searchMode);
+            if(GUI.changed)
+                UpdateTitle();
             GUILayout.Space(8);
             EditorGUI.BeginDisabledGroup(instanceIds == null || instanceIds.Length == 0 || searchMode != 0);
             if(GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash", "Destroy Selection"),
@@ -96,13 +99,19 @@ namespace UInspectorPlus {
         }
 
         private void ShowButton(Rect rect) {
-            GUI.Toggle(rect, locked, GUIContent.none, Helper.GetGUIStyle("IN LockButton"));
-            if(GUI.changed)
+            EditorGUI.BeginDisabledGroup(searchMode != 0);
+            EditorGUI.BeginChangeCheck();
+            GUI.Toggle(rect, locked && searchMode == 0, GUIContent.none, Helper.GetGUIStyle("IN LockButton"));
+            if(EditorGUI.EndChangeCheck())
                 TriggerLock();
-            GUI.changed = false;
+            EditorGUI.EndDisabledGroup();
         }
 
         void IHasCustomMenu.AddItemsToMenu(GenericMenu menu) {
+            for(int i = 0; i < searchModes.Length; i++)
+                menu.AddItem(new GUIContent(searchModes[i]), searchMode == i, ChangeSearchMode, i);
+            if(searchMode != 0) return;
+            menu.AddSeparator("");
             menu.AddItem(new GUIContent("Refresh"), false, RefreshList);
             if(autoUpdateValues)
                 menu.AddDisabledItem(new GUIContent("Update Values", "Auto Updating"));
@@ -154,6 +163,16 @@ namespace UInspectorPlus {
             if(!locked)
                 OnSelectionChange();
             EditorPrefs.SetBool("inspectorplus_lock", locked);
+        }
+
+        private void ChangeSearchMode(object mode) {
+            searchMode = (int)mode;
+            UpdateTitle();
+            RefreshList();
+        }
+
+        private void UpdateTitle() {
+            titleContent.text = titles[searchMode];
         }
 
         private void OnSelectionChange() {
