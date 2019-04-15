@@ -51,6 +51,7 @@ namespace UInspectorPlus {
             showMethods = EditorPrefs.GetBool("inspectorplus_methods", true);
             locked = EditorPrefs.GetBool("inspectorplus_lock", false);
             showObsolete = EditorPrefs.GetBool("inspectorplus_obsolete", false);
+            searchMode = EditorPrefs.GetInt("inspectorplus_searchmode", 0);
             initialized = true;
         }
 
@@ -64,7 +65,7 @@ namespace UInspectorPlus {
             GUILayout.Space(8);
             searchText = Helper.ToolbarSearchField(searchText ?? string.Empty, searchModes, ref searchMode);
             if(GUI.changed)
-                UpdateTitle();
+                UpdateSearchMode();
             GUILayout.Space(8);
             EditorGUI.BeginDisabledGroup(instanceIds == null || instanceIds.Length == 0 || searchMode != 0);
             if(GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash", "Destroy Selection"),
@@ -109,7 +110,7 @@ namespace UInspectorPlus {
 
         void IHasCustomMenu.AddItemsToMenu(GenericMenu menu) {
             for(int i = 0; i < searchModes.Length; i++)
-                menu.AddItem(new GUIContent(searchModes[i]), searchMode == i, ChangeSearchMode, i);
+                menu.AddItem(new GUIContent(searchModes[i]), searchMode == i, UpdateSearchMode, i);
             if(searchMode != 0) return;
             menu.AddSeparator("");
             menu.AddItem(new GUIContent("Refresh"), false, RefreshList);
@@ -159,20 +160,23 @@ namespace UInspectorPlus {
         }
 
         private void TriggerLock() {
+            if(!locked && Selection.activeObject == null)
+                return;
             locked = !locked;
             if(!locked)
                 OnSelectionChange();
             EditorPrefs.SetBool("inspectorplus_lock", locked);
         }
 
-        private void ChangeSearchMode(object mode) {
+        private void UpdateSearchMode(object mode) {
             searchMode = (int)mode;
-            UpdateTitle();
+            UpdateSearchMode();
             RefreshList();
         }
 
-        private void UpdateTitle() {
+        private void UpdateSearchMode() {
             titleContent.text = titles[searchMode];
+            EditorPrefs.SetInt("inspectorplus_searchmode", searchMode);
         }
 
         private void OnSelectionChange() {
