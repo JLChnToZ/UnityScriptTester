@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using UnityEditor.Animations;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +24,7 @@ namespace UInspectorPlus {
         private bool showMethods;
         private bool locked;
         private bool showObsolete;
+        private bool warningDismissed;
         private int[] instanceIds = new int[0];
 
         private void OnEnable() {
@@ -48,9 +50,7 @@ namespace UInspectorPlus {
             initialized = true;
         }
 
-        private void OnFocus() {
-            OnSelectionChange();
-        }
+        private void OnFocus() => OnSelectionChange();
 
         private void OnGUI() {
             GUILayout.BeginHorizontal(EditorStyles.toolbar);
@@ -74,7 +74,14 @@ namespace UInspectorPlus {
             GUILayout.EndHorizontal();
             GUI.changed = false;
             scrollPos = GUILayout.BeginScrollView(scrollPos);
-            EditorGUILayout.HelpBox(description, MessageType.Warning);
+            if (!warningDismissed) {
+                EditorGUILayout.HelpBox(description, MessageType.Warning);
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Dismiss", EditorStyles.miniButton, GUILayout.ExpandWidth(false)))
+                    warningDismissed = true;
+                EditorGUILayout.EndHorizontal();
+            }
             foreach (var drawer in drawers.SelectMany(drawer => drawer)) {
                 drawer.searchText = searchText;
                 drawer.Draw();
@@ -142,6 +149,7 @@ namespace UInspectorPlus {
         }
 
         private void RefreshList() {
+            foreach (var drawer in drawers) foreach (var d in drawer) d.Dispose();
             drawers.Clear();
             OnSelectionChange();
         }
@@ -159,8 +167,10 @@ namespace UInspectorPlus {
             var pendingRemoveDrawers = new List<InspectorDrawer[]>();
             var pendingAddDrawers = new List<InspectorDrawer[]>();
             foreach (var drawer in drawers)
-                if (drawer.Length <= 0 || drawer[0].target == null || !instanceIds.Contains(Helper.ObjIdOrHashCode(drawer[0].target)))
+                if (drawer.Length <= 0 || drawer[0].target == null || !instanceIds.Contains(Helper.ObjIdOrHashCode(drawer[0].target))) {
                     pendingRemoveDrawers.Add(drawer);
+                    foreach (var d in drawer) d.Dispose();
+                }
             drawers.RemoveAll(pendingRemoveDrawers.Contains);
             foreach (var instanceID in instanceIds)
                 if (drawers.FindIndex(drawer => Helper.ObjIdOrHashCode(drawer[0].target) == instanceID) < 0)
@@ -188,11 +198,20 @@ namespace UInspectorPlus {
                         Debug.LogException(ex);
                     }
                 }
+            var animatorState = target as AnimatorState;
+            if (animatorState != null)
+                foreach (var animBeahvior in animatorState.behaviours) {
+                    try {
+                        ret.Add(CreateDrawer(animBeahvior, false));
+                    } catch (Exception ex) {
+                        Debug.LogException(ex);
+                    }
+                }
             return ret.ToArray();
         }
 
         private InspectorDrawer CreateDrawer(UnityObject target, bool shown) {
-            var drawer = new InspectorDrawer(target, target.GetType(), shown, showProps, privateFields, showObsolete, showMethods);
+            var drawer = InspectorDrawer.GetDrawer(target, target.GetType(), shown, showProps, privateFields, showObsolete, showMethods);
             drawer.OnRequireRedraw += Repaint;
             return drawer;
         }
@@ -226,7 +245,7 @@ namespace UInspectorPlus {
                     if (!deleteAll)
                         switch (EditorUtility.DisplayDialogComplex(
                             "Destroy object",
-                            string.Format("Destroy {0} {1} (Instance ID: {2})?", obj.GetType(), obj.name, id),
+                            $"Destroy {obj.GetType()} {obj.name} (Instance ID: {id})?",
                             "Yes", "No", "Yes to all"
                         )) {
                             case 0: deleteThis = true; break;
@@ -245,7 +264,7 @@ namespace UInspectorPlus {
                     Debug.LogException(ex);
                     if (showError)
                         switch (EditorUtility.DisplayDialogComplex(
-                            string.Format("Error while destroying object {0}", id),
+                            $"Error while destroying object {id}",
                             ex.Message,
                             "Continue", "Stop", "Don't show again"
                         )) {

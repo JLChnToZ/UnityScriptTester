@@ -33,7 +33,7 @@ namespace UInspectorPlus {
             GUILayout.BeginVertical();
             GUILayout.Space(8);
             GUILayout.Label(
-                string.Format("Type Search Result ({0}):", searchTypeResult.Length),
+                $"Type Search Result ({searchTypeResult.Length}):",
                 EditorStyles.boldLabel
             );
             GUILayout.Space(8);

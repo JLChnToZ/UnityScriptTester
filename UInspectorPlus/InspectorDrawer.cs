@@ -1,43 +1,69 @@
 ﻿using UnityEngine;
 using UnityEditor;
-using UnityEditorInternal;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
 using UnityObject = UnityEngine.Object;
+using System.Runtime.CompilerServices;
 
 namespace UInspectorPlus {
-    internal class InspectorDrawer {
+    internal struct TypedDrawer {
+        public Type drawerType;
+        public Type targetType;
+        public int priority;
+    }
+
+    public class InspectorDrawer: IDisposable {
+        private static readonly List<TypedDrawer> typedDrawers = new List<TypedDrawer>();
         public object target;
-        public List<IReflectorDrawer> drawer;
-        private HashSet<IReflectorDrawer> removingDrawers;
+        internal readonly List<IReflectorDrawer> drawer = new List<IReflectorDrawer>();
+        private readonly HashSet<IReflectorDrawer> removingDrawers = new HashSet<IReflectorDrawer>();
         public bool shown;
         public bool isInternalType;
         public bool changed;
         public string searchText;
         public event Action OnRequireRedraw;
-        private Type targetType;
-        private readonly Type elementType;
-        private HexEdit hexEdit;
-        private List<MethodPropertyDrawer> arrayContentDrawer;
-        private ReorderableList arrayHandler;
-        private bool showListEdit;
-        private bool allowPrivate;
-        private readonly bool allowMethods;
+        protected Type targetType;
+        protected bool allowPrivate;
+        protected readonly bool allowMethods;
+
+        public static void RegisterCustomInspectorDrawer<T>(Type targetType, int priority = 0) where T : InspectorDrawer {
+            typedDrawers.Add(new TypedDrawer {
+                targetType = targetType,
+                drawerType = typeof(T),
+                priority = priority
+            });
+        }
+
+        public static InspectorDrawer GetDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
+            foreach (var type in AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(asm => asm.GetTypes())
+                .Where(type => type.IsClass && !type.IsAbstract && type.IsSubclassOf(typeof(InspectorDrawer))))
+                RuntimeHelpers.RunClassConstructor(type.TypeHandle);
+            int lastPriority = int.MinValue;
+            Type drawerType = null;
+            try {
+                foreach (var kv in typedDrawers)
+                    if (kv.targetType.IsAssignableFrom(targetType) && kv.priority > lastPriority)
+                        drawerType = kv.drawerType;
+                if (drawerType != null)
+                    return Activator.CreateInstance(drawerType, target, targetType, shown, showProps, showPrivateFields, showObsolete, showMethods) as InspectorDrawer;
+            } catch (Exception ex) {
+                Debug.LogException(ex);
+                Debug.LogWarning($"Failed to instaniate drawer {drawerType.Name}, will fall back to default drawer.");
+            }
+            return new InspectorDrawer(target, targetType, shown, showProps, showPrivateFields, showObsolete, showMethods);
+        }
 
         public InspectorDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
             this.target = target;
-            drawer = new List<IReflectorDrawer>();
-            removingDrawers = new HashSet<IReflectorDrawer>();
             BindingFlags flag = BindingFlags.Static | BindingFlags.Public;
             if (target != null)
                 flag |= BindingFlags.Instance;
             if (allowPrivate = showPrivateFields)
                 flag |= BindingFlags.NonPublic;
             this.targetType = targetType;
-            elementType = Helper.GetGenericListType(targetType);
             var fields = targetType.GetFields(flag);
             var props = !showProps ? null : targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray();
             isInternalType = !targetType.IsSubclassOf(typeof(MonoBehaviour)) || Attribute.IsDefined(targetType, typeof(ExecuteInEditMode));
@@ -101,51 +127,20 @@ namespace UInspectorPlus {
             }
             EditorGUI.indentLevel++;
             EditorGUILayout.BeginVertical();
-            if (target is Type && GUILayout.Button(string.Format("Inspect Static Members of {0}...", target)))
-                InspectorChildWindow.OpenStatic(target as Type, true, allowPrivate, false, true, false, null);
-            else if (target != null && elementType != null) {
-                if (targetType == typeof(byte[])) {
-                    if (hexEdit == null)
-                        hexEdit = new HexEdit();
-                    hexEdit.data = target as byte[];
-                    if (hexEdit.data != null)
-                        hexEdit.DrawGUI(false, GUILayout.MinHeight(EditorGUIUtility.singleLineHeight * 3), GUILayout.ExpandHeight(true));
-                } else if (showListEdit = EditorGUILayout.Foldout(showListEdit, string.Format("Edit List [{0} Items]", (target as IList).Count))) {
-                    if (arrayHandler == null) {
-                        if (arrayContentDrawer == null) {
-                            arrayContentDrawer = new List<MethodPropertyDrawer>();
-                            for (int i = 0; i < (target as IList).Count; i++)
-                                ListAddItem();
-                        }
-                        arrayHandler = new ReorderableList(target as IList, elementType) {
-                            headerHeight = EditorGUIUtility.singleLineHeight,
-                            elementHeight = EditorGUIUtility.singleLineHeight + 2,
-                            drawElementCallback = (r, i, c, d) => {
-                                arrayContentDrawer[i].Value = (target as IList)[i];
-                                arrayContentDrawer[i].Draw(false, Helper.ScaleRect(r, offsetHeight: -2));
-                                if (arrayContentDrawer[i].Changed)
-                                    (target as IList)[i] = arrayContentDrawer[i].Value;
-                            },
-                            drawHeaderCallback = r => GUI.Label(r, target.ToString(), EditorStyles.miniBoldLabel),
-                            onCanAddCallback = l => target != null && !(target as IList).IsFixedSize,
-                            onAddCallback = l => {
-                                ReorderableList.defaultBehaviours.DoAddButton(l);
-                                ListAddItem();
-                            },
-                            onRemoveCallback = l => {
-                                ReorderableList.defaultBehaviours.DoRemoveButton(l);
-                                arrayContentDrawer.RemoveAt(0);
-                            }
-                        };
-                        arrayHandler.onCanRemoveCallback = arrayHandler.onCanAddCallback.Invoke;
-                    }
-                    arrayHandler.DoLayoutList();
-                }
-            }
+            DrawRequestRefs();
+            Draw(readOnly);
+            EditorGUILayout.EndVertical();
+            EditorGUI.indentLevel--;
             if (removingDrawers.Count > 0) {
+                foreach (var drawer in removingDrawers)
+                    if (drawer is IDisposable disposable)
+                        disposable.Dispose();
                 drawer.RemoveAll(removingDrawers.Contains);
                 removingDrawers.Clear();
             }
+        }
+
+        protected virtual void Draw(bool readOnly) {
             foreach (var item in drawer) {
                 var methodDrawer = item as ComponentMethodDrawer;
                 var fieldDrawer = item as MethodPropertyDrawer;
@@ -175,14 +170,17 @@ namespace UInspectorPlus {
                     AddMethodMenu();
                 GUILayout.EndHorizontal();
             }
-            EditorGUILayout.EndVertical();
-            EditorGUI.indentLevel--;
         }
 
-        private void ListAddItem(object value = null) {
-            var drawer = new MethodPropertyDrawer(elementType, "", value, true, false);
-            drawer.OnRequireRedraw += RequireRedraw;
-            arrayContentDrawer.Add(drawer);
+        private void DrawRequestRefs() {
+            MethodPropertyDrawer removal = null;
+            foreach (var drawer in MethodPropertyDrawer.drawerRequestingReferences)
+                if (drawer.requiredType.IsAssignableFrom(targetType) &&
+                    GUILayout.Button($"Assign this object to {drawer.name}")) {
+                    drawer.Value = target;
+                    removal = drawer;
+                }
+            if (removal != null) MethodPropertyDrawer.drawerRequestingReferences.Remove(removal);
         }
 
         public void UpdateValues(bool updateProps) {
@@ -198,7 +196,14 @@ namespace UInspectorPlus {
             }
         }
 
-        private void RequireRedraw() {
+        public virtual void Dispose() {
+            foreach (var d in drawer)
+                if (d is IDisposable disposable)
+                    disposable.Dispose();
+            drawer.Clear();
+        }
+
+        protected void RequireRedraw() {
             if (target != null && OnRequireRedraw != null)
                 OnRequireRedraw();
         }

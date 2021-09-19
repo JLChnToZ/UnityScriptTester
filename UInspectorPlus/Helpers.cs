@@ -338,10 +338,7 @@ namespace UInspectorPlus {
                 if ((changes & (1 << i)) != 0) {
                     itemValue = Convert.ToInt64(itemValues.GetValue(i));
                     if ((newMaskVal & (1 << i)) != 0) {
-                        if (itemValue == 0) {
-                            rawValue = 0;
-                            break;
-                        }
+                        if (itemValue == 0) break;
                         value |= itemValue;
                     } else
                         value &= ~itemValue;
@@ -444,10 +441,10 @@ namespace UInspectorPlus {
         private static int CountLines(string str) {
             if (string.IsNullOrEmpty(str))
                 return 1;
-            int cursor = 0, count = 0, length = str.Length, i = -1;
+            int cursor = 0, count = 0, length = str.Length;
             bool isCR = false;
             while (cursor < length) {
-                i = str.IndexOf('\r', cursor);
+                int i = str.IndexOf('\r', cursor);
                 if (i >= 0) {
                     count++;
                     isCR = true;
@@ -544,9 +541,7 @@ namespace UInspectorPlus {
             return GUI.skin.FindStyle(styleName) ?? EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).FindStyle(styleName);
         }
 
-        internal static T GetOrDefault<T>(object value, T defaultValue = default(T)) {
-            return value == null ? defaultValue : (T)value;
-        }
+        internal static T GetOrDefault<T>(object value, T defaultValue = default(T)) => value == null ? defaultValue : (T)value;
 
         internal static TDelegate GetDelegate<TDelegate>(string fromTypeName, string methodName, object target = null) where TDelegate : class {
             if (fromTypeName == null)

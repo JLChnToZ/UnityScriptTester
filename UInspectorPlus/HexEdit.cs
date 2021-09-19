@@ -4,28 +4,40 @@ using UnityEngine;
 using UnityEditor;
 
 namespace UInspectorPlus {
-    internal class HexEdit {
+    internal class HexEdit: InspectorDrawer {
         [SerializeField] private Vector2 scrollPos;
-        public byte[] data;
+        public byte[] Data { get => target as byte[]; }
         public int columns = 16;
         private GUIContent temp = new GUIContent();
 
+        static HexEdit() => RegisterCustomInspectorDrawer<HexEdit>(typeof(byte[]), -1);
+
+
         public float Height {
             get {
-                if (data == null) return 0;
-                return (data.Length + columns) / columns * (EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing);
+                if (Data == null) return 0;
+                return (Data.Length + columns) / columns * (EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing);
             }
         }
 
-        public void DrawGUI(bool hasLabel = false, params GUILayoutOption[] options) {
-            Draw(EditorGUILayout.GetControlRect(hasLabel, Height, options));
+        public HexEdit(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) :
+            base(target, targetType, shown, showProps, showPrivateFields, showObsolete, showMethods) {
         }
 
-        public void Draw(Rect viewport) {
+        protected override void Draw(bool readOnly) {
+            if (Data != null)
+                Draw(EditorGUILayout.GetControlRect(
+                    false, Height, GUILayout.MinHeight(EditorGUIUtility.singleLineHeight * 3), GUILayout.ExpandHeight(true)
+                ));
+            base.Draw(readOnly);
+        }
+
+
+        private void Draw(Rect viewport) {
             float height = EditorGUIUtility.singleLineHeight;
             float padHeight = height + EditorGUIUtility.standardVerticalSpacing;
-            if (data != null) {
-                temp.text = data.Length.ToString("X8");
+            if (Data != null) {
+                temp.text = Data.Length.ToString("X8");
                 Vector2 labelSize = GUI.skin.label.CalcSize(temp);
                 Rect contentRect = new Rect(0, 0, labelSize.x + (columns * 1.7F + 2) * height, Height);
                 GUI.Box(viewport, GUIContent.none, GUI.skin.textArea);
@@ -33,7 +45,7 @@ namespace UInspectorPlus {
                 bool changed = GUI.changed;
                 GUI.changed = false;
                 for (int start = Mathf.FloorToInt(scrollPos.y / padHeight) * columns,
-                    end = Math.Min(data.Length, start + Mathf.CeilToInt(viewport.height / padHeight) * columns),
+                    end = Math.Min(Data.Length, start + Mathf.CeilToInt(viewport.height / padHeight) * columns),
                     col = start; col < end; col++) {
                     if (col % columns == 0) {
                         temp.text = col.ToString("X8");
@@ -45,7 +57,7 @@ namespace UInspectorPlus {
                             col / columns * padHeight,
                             height * 1.6F, height
                         ),
-                        data[col].ToString("X2"),
+                        Data[col].ToString("X2"),
                         2, GUI.skin.label
                     );
                     if (GUI.changed) {
@@ -53,7 +65,7 @@ namespace UInspectorPlus {
                         changed = true;
                         int val;
                         if (int.TryParse(newValue, NumberStyles.HexNumber, null, out val))
-                            data[col] = unchecked((byte)val);
+                            Data[col] = unchecked((byte)val);
                     }
                     string newStr = GUI.TextField(
                         new Rect(
@@ -61,13 +73,13 @@ namespace UInspectorPlus {
                             col / columns * padHeight,
                             height * 0.8F, height
                         ),
-                        Byte2String(data[col]),
+                        Byte2String(Data[col]),
                         1, GUI.skin.label
                     );
                     if (GUI.changed) {
                         GUI.changed = false;
                         changed = true;
-                        data[col] = newStr.Length > 0 ? unchecked((byte)newStr[0]) : (byte)0;
+                        Data[col] = newStr.Length > 0 ? unchecked((byte)newStr[0]) : (byte)0;
                     }
                 }
                 GUI.changed = changed;

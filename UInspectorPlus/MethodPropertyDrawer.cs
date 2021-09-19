@@ -7,11 +7,12 @@ using System.Reflection;
 using UnityObject = UnityEngine.Object;
 
 namespace UInspectorPlus {
-    internal class MethodPropertyDrawer: IReflectorDrawer {
+    public class MethodPropertyDrawer: IReflectorDrawer, IDisposable {
+        public static HashSet<MethodPropertyDrawer> drawerRequestingReferences = new HashSet<MethodPropertyDrawer>();
         public readonly string name;
         private readonly GUIContent nameContent;
-        private MemberInfo memberInfo;
         public Type requiredType;
+        private MemberInfo memberInfo;
         private readonly List<PropertyType> castableTypes;
         private PropertyType currentType;
         private readonly object target;
@@ -28,14 +29,10 @@ namespace UInspectorPlus {
         private PropertyInfo selectedProperty;
         private ComponentMethodDrawer ctorDrawer;
         private Rect menuButtonRect;
-        private bool changed;
         private bool allowReferenceMode = true;
         private bool privateFields = true;
-        private bool optionalPrivateFields = true;
         private bool obsolete = true;
         private bool masked;
-        private bool showUpdatable;
-        private bool updatable;
         private bool isInfoReadonly;
         private readonly bool isStatic;
         private readonly bool isPrivate;
@@ -80,19 +77,11 @@ namespace UInspectorPlus {
             }
         }
 
-        public bool Changed {
-            get { return changed; }
-        }
+        public bool Changed { get; private set; }
 
-        public bool ShowUpdatable {
-            get { return showUpdatable; }
-            set { showUpdatable = value; }
-        }
+        public bool ShowUpdatable { get; set; }
 
-        public bool Updatable {
-            get { return updatable; }
-            set { updatable = value; }
-        }
+        public bool Updatable { get; set; }
 
         public bool AllowReferenceMode {
             get { return allowReferenceMode; }
@@ -147,30 +136,24 @@ namespace UInspectorPlus {
             }
         }
 
-        public bool OptionalPrivateFields {
-            get { return optionalPrivateFields; }
-            set { optionalPrivateFields = value; }
-        }
+        public bool OptionalPrivateFields { get; set; } = true;
 
         public object Value {
             get {
-                if (referenceMode) {
-                    rawValue = GetReferencedValue();
-                }
+                if (referenceMode) rawValue = GetReferencedValue();
                 var convertedValue = rawValue;
-                if (rawValue != null && requiredType != typeof(object) && requiredType.IsInstanceOfType(rawValue)) {
+                if (rawValue != null && requiredType != typeof(object) && requiredType.IsInstanceOfType(rawValue))
                     try {
                         convertedValue = Convert.ChangeType(rawValue, requiredType);
                     } catch {
                         convertedValue = rawValue;
                     }
-                }
-                changed = false;
+                Changed = false;
                 return convertedValue;
             }
             set {
                 rawValue = value;
-                changed = false;
+                Changed = false;
             }
         }
 
@@ -178,18 +161,14 @@ namespace UInspectorPlus {
             get { return getException; }
             set {
                 getException = value;
-                if (updatable)
-                    Helper.StoreState(memberInfo, updatable = false);
+                if (Updatable)
+                    Helper.StoreState(memberInfo, Updatable = false);
             }
         }
 
-        public bool IsReadOnly {
-            get { return isInfoReadonly; }
-        }
+        public bool IsReadOnly => isInfoReadonly;
 
-        public object Target {
-            get { return target; }
-        }
+        public object Target => target;
 
         private MethodPropertyDrawer(bool allowPrivate, bool allowObsolete) {
             castableTypes = new List<PropertyType>();
@@ -221,10 +200,8 @@ namespace UInspectorPlus {
             if (indexParams != null && indexParams.Length > 0) {
                 this.indexParams = indexParams;
                 var paramList = Helper.JoinStringList(null, indexParams.Select(new Func<object, string>(Convert.ToString)), ", ").ToString();
-                name = string.Format("{0}[{1}]",
-                    Helper.GetMemberName(property, true, false), paramList);
-                nameContent = new GUIContent(name, string.Format("{0}[{1}]",
-                    Helper.GetMemberName(property, false, false), paramList));
+                name = $"{Helper.GetMemberName(property, true, false)}[{paramList}]";
+                nameContent = new GUIContent(name, $"{Helper.GetMemberName(property, false, false)}[{paramList}]");
             } else {
                 name = Helper.GetMemberName(property, true);
                 nameContent = new GUIContent(name, Helper.GetMemberName(property));
@@ -232,8 +209,8 @@ namespace UInspectorPlus {
             if (initValue) rawValue = property.GetValue(target, indexParams);
             this.target = target;
             var getMethod = property.GetGetMethod();
-            isStatic = getMethod != null ? getMethod.IsStatic : false;
-            isPrivate = getMethod != null ? getMethod.IsPrivate : false;
+            isStatic = getMethod != null && getMethod.IsStatic;
+            isPrivate = getMethod != null && getMethod.IsPrivate;
             InitType();
         }
 
@@ -292,9 +269,7 @@ namespace UInspectorPlus {
             currentType = castableTypes.Count > 0 ? castableTypes[0] : PropertyType.Unknown;
         }
 
-        public void Draw() {
-            Draw(false);
-        }
+        public void Draw() => Draw(false);
 
         public void Draw(bool readOnly, Rect? rect = null) {
             if (target == null && Helper.IsInstanceMember(memberInfo))
@@ -307,23 +282,26 @@ namespace UInspectorPlus {
                 ) ||
                 allowReferenceMode ||
                 castableTypes.Count > 1;
-            if (!rect.HasValue)
-                EditorGUI.indentLevel--;
-            EditorGUILayout.BeginHorizontal();
             if (rect.HasValue) {
                 Rect sRect = referenceModeBtn ? Helper.ScaleRect(rect.Value, offsetWidth: -EditorGUIUtility.singleLineHeight) : rect.Value;
                 if (referenceMode || grabValueMode == 1)
                     DrawReferencedField(sRect);
+                else if (grabValueMode == 3)
+                    DrawRequestReferenceField(sRect);
                 else
                     DrawDirectField(readOnly, sRect);
             } else {
-                if (showUpdatable) {
-                    updatable = EditorGUILayout.ToggleLeft(new GUIContent("", "Update Enabled"), updatable, GUILayout.Width(EditorGUIUtility.singleLineHeight));
-                    Helper.StoreState(memberInfo, updatable);
+                EditorGUI.indentLevel--;
+                EditorGUILayout.BeginHorizontal();
+                if (ShowUpdatable) {
+                    Updatable = EditorGUILayout.ToggleLeft(new GUIContent("", "Update Enabled"), Updatable, GUILayout.Width(EditorGUIUtility.singleLineHeight));
+                    Helper.StoreState(memberInfo, Updatable);
                 } else
                     EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
                 if (referenceMode || grabValueMode == 1)
                     DrawReferencedField(null);
+                else if (grabValueMode == 3)
+                    DrawRequestReferenceField(null);
                 else
                     DrawDirectField(readOnly, null);
             }
@@ -338,7 +316,8 @@ namespace UInspectorPlus {
                         menuButtonRect = GUILayoutUtility.GetLastRect();
                 }
             }
-            EditorGUILayout.EndHorizontal();
+            if (!rect.HasValue)
+                EditorGUILayout.EndHorizontal();
             if (grabValueMode == 2)
                 DrawCtorField();
             if (!rect.HasValue)
@@ -348,18 +327,17 @@ namespace UInspectorPlus {
         }
 
         public bool UpdateIfChanged() {
-            if (!changed)
+            if (!Changed)
                 return false;
             if (Helper.AssignValue(memberInfo, target, Value, indexParams))
                 return true;
             UpdateValue();
-            changed = false;
+            Changed = false;
             return false;
         }
 
         public bool UpdateValue() {
-            object value;
-            if (Helper.FetchValue(memberInfo, target, out value, indexParams)) {
+            if (Helper.FetchValue(memberInfo, target, out var value, indexParams)) {
                 rawValue = value;
                 GetException = null;
                 return true;
@@ -372,6 +350,11 @@ namespace UInspectorPlus {
                 return false;
             GetException = value as Exception;
             return false;
+        }
+
+        public void Dispose() {
+            drawerRequestingReferences.Remove(this);
+            if (ctorDrawer != null) ctorDrawer.Dispose();
         }
 
         private void AddField(UnityObject target) {
@@ -405,19 +388,11 @@ namespace UInspectorPlus {
             if (gameObject != null)
                 foreach (var c in gameObject.GetComponents(typeof(Component)))
                     AddField(c);
-            fieldNames = fields.Select(m => string.Format(
-                "{0} ({1})/{2}",
-                m.target.GetType().Name,
-                m.target.GetInstanceID(),
-                Helper.GetMemberName(m.property == null ? m.field as MemberInfo : m.property as MemberInfo)
-            )).ToArray();
+            fieldNames = fields.Select(m => $"{m.target.GetType().Name} ({m.target.GetInstanceID()})/{Helper.GetMemberName(m.property ?? m.field as MemberInfo)}").ToArray();
             selectedFieldIndex = -1;
         }
 
-        private object GetReferencedValue() {
-            object val = null;
-            return Helper.FetchValue(selectedField as MemberInfo ?? selectedProperty, component, out val) ? val : null;
-        }
+        private object GetReferencedValue() => Helper.FetchValue(selectedField ?? selectedProperty as MemberInfo, component, out var val) ? val : null;
 
         private void DrawCtorField() {
             if (ctorDrawer == null) {
@@ -434,6 +409,22 @@ namespace UInspectorPlus {
             if (ctorDrawer.Value != null) {
                 rawValue = ctorDrawer.Value;
                 grabValueMode = 0;
+                RequireRedraw();
+            }
+        }
+
+        private void DrawRequestReferenceField(Rect? rect) {
+            bool buttonClicked;
+            if (rect.HasValue) {
+                rect = EditorGUI.PrefixLabel(rect.Value, new GUIContent("Requesting References..."));
+                buttonClicked = GUI.Button(rect.Value, "Cancel", EditorStyles.miniButton);
+            } else {
+                EditorGUILayout.PrefixLabel(new GUIContent("Requesting References..."));
+                buttonClicked = GUILayout.Button("Cancel", EditorStyles.miniButton);
+            }
+            if (buttonClicked) {
+                grabValueMode = 0;
+                drawerRequestingReferences.Remove(this);
                 RequireRedraw();
             }
         }
@@ -628,7 +619,7 @@ namespace UInspectorPlus {
                     RequireRedraw();
             }
             if (!readOnly) {
-                changed |= GUI.changed;
+                Changed |= GUI.changed;
                 rawValue = value;
             }
             GUI.color = color;
@@ -638,7 +629,7 @@ namespace UInspectorPlus {
         private void DrawUnknownField(bool readOnly, object target, Rect? position = null) {
             if (target == null)
                 return;
-            bool clicked = false;
+            bool clicked;
             if (!position.HasValue)
                 clicked = GUILayout.Button("…", EditorStyles.miniButton, GUILayout.ExpandWidth(false));
             else
@@ -661,10 +652,11 @@ namespace UInspectorPlus {
                     menu.AddItem(new GUIContent("Mode/By Value"), grabValueMode == 0, GrabValueMode, 0);
                 menu.AddItem(new GUIContent("Mode/From Component"), grabValueMode == 1, GrabValueMode, 1);
                 menu.AddItem(new GUIContent("Mode/Construct"), grabValueMode == 2, GrabValueMode, 2);
+                menu.AddItem(new GUIContent("Mode/From Opened Inspectors"), grabValueMode == 3, GrabValueMode, 3);
             }
             if (currentType == PropertyType.Enum)
                 menu.AddItem(new GUIContent("Multiple Selection"), masked, ChangeMultiSelect, !masked);
-            if (optionalPrivateFields) {
+            if (OptionalPrivateFields) {
                 if (referenceMode)
                     menu.AddItem(new GUIContent("Allow Private Members"), privateFields, ChangePrivateFields, !privateFields);
                 else
@@ -689,23 +681,21 @@ namespace UInspectorPlus {
         private void ChangeRefMode(object value) {
             ReferenceMode = (bool)value;
             grabValueMode = 0;
+            drawerRequestingReferences.Remove(this);
         }
 
         private void GrabValueMode(object value) {
             grabValueMode = (int)value;
+            if (grabValueMode == 3)
+                drawerRequestingReferences.Add(this);
+            else
+                drawerRequestingReferences.Remove(this);
         }
 
-        private void ChangeMultiSelect(object value) {
-            masked = (bool)value;
-        }
+        private void ChangeMultiSelect(object value) => masked = (bool)value;
 
-        private void ChangePrivateFields(object value) {
-            AllowPrivateFields = (bool)value;
-        }
+        private void ChangePrivateFields(object value) => AllowPrivateFields = (bool)value;
 
-        private void RequireRedraw() {
-            if (OnRequireRedraw != null)
-                OnRequireRedraw();
-        }
+        private void RequireRedraw() => OnRequireRedraw?.Invoke();
     }
 }

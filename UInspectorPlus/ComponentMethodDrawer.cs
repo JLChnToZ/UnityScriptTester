@@ -8,7 +8,7 @@ using System.Reflection;
 using UnityObject = UnityEngine.Object;
 
 namespace UInspectorPlus {
-    internal class ComponentMethodDrawer: IReflectorDrawer {
+    internal class ComponentMethodDrawer: IReflectorDrawer, IDisposable {
         private object component;
         private readonly List<ComponentMethod> methods = new List<ComponentMethod>();
         private AnimBool showMethodOptions;
@@ -42,13 +42,9 @@ namespace UInspectorPlus {
             }
         }
 
-        public bool Changed {
-            get { return false; }
-        }
+        public bool Changed => false;
 
-        public object Value {
-            get { return result == null ? null : result.Value; }
-        }
+        public object Value => result?.Value;
 
         public bool AllowPrivateFields {
             get { return privateFields; }
@@ -66,13 +62,9 @@ namespace UInspectorPlus {
             }
         }
 
-        public MemberInfo Info {
-            get { return selectedMember; }
-        }
+        public MemberInfo Info => selectedMember;
 
-        public bool IsComponentNull() {
-            return component == null;
-        }
+        public bool IsComponentNull => component == null;
 
         public ComponentMethodDrawer() {
             showMethodSelector = new AnimBool(false);
@@ -153,7 +145,7 @@ namespace UInspectorPlus {
                             obsolete);
                         break;
                 }
-                for (int i = 0; i < Math.Min(parameters.Length, requestData.Length); i++) {
+                for (int i = 0, l = Math.Min(parameters.Length, requestData.Length); i < l; i++) {
                     parameters[i].Value = requestData[i];
                     if (parameters[i].ReferenceMode)
                         Helper.AssignValue(parameters[i].RefFieldInfo, parameters[i].Component, requestData[i]);
@@ -214,6 +206,13 @@ namespace UInspectorPlus {
             if (mode == MethodMode.Indexer && result != null)
                 return result.UpdateValue();
             return false;
+        }
+
+        public void Dispose() {
+            if (parameters != null)
+                foreach (var parameter in parameters)
+                    parameter.Dispose();
+            result?.Dispose();
         }
 
         private bool FilterMemberInfo(MemberInfo m) {
@@ -291,12 +290,7 @@ namespace UInspectorPlus {
                 if (gameObject != null)
                     foreach (var c in gameObject.GetComponents(typeof(Component)))
                         AddComponentMethod(c);
-                methodNames = methods.Select((m, i) => string.Format(
-                    "{0} ({1})/{2}",
-                    m.target.GetType().Name,
-                    Helper.ObjIdOrHashCode(m.target),
-                    GetMethodNameFormatted(m, i)
-                )).ToArray();
+                methodNames = methods.Select((m, i) => $"{m.target.GetType().Name} ({Helper.ObjIdOrHashCode(m.target)})/{GetMethodNameFormatted(m, i)}").ToArray();
             } else {
                 methodNames = methods.Select((m, i) => GetMethodNameFormatted(m, i)).ToArray();
             }
@@ -451,7 +445,7 @@ namespace UInspectorPlus {
 
         private void DrawExecButton() {
             if (selectedMember == null) return;
-            bool execute = false;
+            bool execute;
             switch (mode) {
                 case MethodMode.Constructor:
                     execute = GUILayout.Button("Construct");
@@ -469,9 +463,6 @@ namespace UInspectorPlus {
                 Call();
         }
 
-        private void RequireRedraw() {
-            if (OnRequireRedraw != null)
-                OnRequireRedraw();
-        }
+        private void RequireRedraw() => OnRequireRedraw?.Invoke();
     }
 }
