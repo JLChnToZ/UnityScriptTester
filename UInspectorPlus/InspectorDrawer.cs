@@ -37,19 +37,19 @@ namespace UInspectorPlus {
         }
 
         public static InspectorDrawer GetDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
-            foreach (var type in AppDomain.CurrentDomain.GetAssemblies()
+            foreach(var type in AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(asm => asm.GetTypes())
                 .Where(type => type.IsClass && !type.IsAbstract && type.IsSubclassOf(typeof(InspectorDrawer))))
                 RuntimeHelpers.RunClassConstructor(type.TypeHandle);
             int lastPriority = int.MinValue;
             Type drawerType = null;
             try {
-                foreach (var kv in typedDrawers)
-                    if (kv.targetType.IsAssignableFrom(targetType) && kv.priority > lastPriority)
+                foreach(var kv in typedDrawers)
+                    if(kv.targetType.IsAssignableFrom(targetType) && kv.priority > lastPriority)
                         drawerType = kv.drawerType;
-                if (drawerType != null)
+                if(drawerType != null)
                     return Activator.CreateInstance(drawerType, target, targetType, shown, showProps, showPrivateFields, showObsolete, showMethods) as InspectorDrawer;
-            } catch (Exception ex) {
+            } catch(Exception ex) {
                 Debug.LogException(ex);
                 Debug.LogWarning($"Failed to instaniate drawer {drawerType.Name}, will fall back to default drawer.");
             }
@@ -59,52 +59,52 @@ namespace UInspectorPlus {
         public InspectorDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
             this.target = target;
             BindingFlags flag = BindingFlags.Static | BindingFlags.Public;
-            if (target != null)
+            if(target != null)
                 flag |= BindingFlags.Instance;
-            if (allowPrivate = showPrivateFields)
+            if(allowPrivate = showPrivateFields)
                 flag |= BindingFlags.NonPublic;
             this.targetType = targetType;
             var fields = targetType.GetFields(flag);
             var props = !showProps ? null : targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray();
             isInternalType = !targetType.IsSubclassOf(typeof(MonoBehaviour)) || Attribute.IsDefined(targetType, typeof(ExecuteInEditMode));
-            foreach (var field in fields)
+            foreach(var field in fields)
                 try {
-                    if (!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
+                    if(!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
                         continue;
                     drawer.Add(new MethodPropertyDrawer(field, target, showPrivateFields, showObsolete) {
                         AllowReferenceMode = false
                     });
-                } catch (Exception ex) {
+                } catch(Exception ex) {
                     Debug.LogException(ex);
                 }
-            if (showProps) {
+            if(showProps) {
                 HashSet<string> blacklistedType;
-                if (!Helper.blackListedTypes.TryGetValue(targetType, out blacklistedType)) {
+                if(!Helper.blackListedTypes.TryGetValue(targetType, out blacklistedType)) {
                     Helper.blackListedTypes.Add(targetType, blacklistedType = new HashSet<string>());
-                    foreach (var kvp in Helper.blackListedTypes)
-                        if (kvp.Key.IsAssignableFrom(targetType))
+                    foreach(var kvp in Helper.blackListedTypes)
+                        if(kvp.Key.IsAssignableFrom(targetType))
                             blacklistedType.UnionWith(kvp.Value);
                 }
-                foreach (var prop in props)
+                foreach(var prop in props)
                     try {
-                        if (blacklistedType != null && blacklistedType.Contains(prop.Name))
+                        if(blacklistedType != null && blacklistedType.Contains(prop.Name))
                             continue;
-                        if (!showObsolete && Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
+                        if(!showObsolete && Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
                             continue;
                         drawer.Add(new MethodPropertyDrawer(prop, target, showPrivateFields, showObsolete, prop.CanRead && EditorApplication.isPlaying) {
                             AllowReferenceMode = false,
                             Updatable = isInternalType || Helper.GetState(prop, false),
                             ShowUpdatable = !isInternalType
                         });
-                    } catch (Exception ex) {
+                    } catch(Exception ex) {
                         Debug.LogException(ex);
                     }
             }
-            if (allowMethods = showMethods)
+            if(allowMethods = showMethods)
                 AddMethodMenu();
-            foreach (var d in drawer)
+            foreach(var d in drawer)
                 d.OnRequireRedraw += RequireRedraw;
-            if (target != null)
+            if(target != null)
                 this.shown = Helper.GetState(target, shown);
         }
 
@@ -118,11 +118,11 @@ namespace UInspectorPlus {
         }
 
         public void Draw(bool drawHeader = true, bool readOnly = false) {
-            if (drawHeader) {
+            if(drawHeader) {
                 shown = EditorGUILayout.InspectorTitlebar(shown, target as UnityObject);
-                if (target != null)
+                if(target != null)
                     Helper.StoreState(target, shown);
-                if (!shown)
+                if(!shown)
                     return;
             }
             EditorGUI.indentLevel++;
@@ -131,9 +131,9 @@ namespace UInspectorPlus {
             Draw(readOnly);
             EditorGUILayout.EndVertical();
             EditorGUI.indentLevel--;
-            if (removingDrawers.Count > 0) {
-                foreach (var drawer in removingDrawers)
-                    if (drawer is IDisposable disposable)
+            if(removingDrawers.Count > 0) {
+                foreach(var drawer in removingDrawers)
+                    if(drawer is IDisposable disposable)
                         disposable.Dispose();
                 drawer.RemoveAll(removingDrawers.Contains);
                 removingDrawers.Clear();
@@ -141,32 +141,33 @@ namespace UInspectorPlus {
         }
 
         protected virtual void Draw(bool readOnly) {
-            foreach (var item in drawer) {
+            foreach(var item in drawer) {
                 var methodDrawer = item as ComponentMethodDrawer;
                 var fieldDrawer = item as MethodPropertyDrawer;
-                if (methodDrawer != null) {
+                if(methodDrawer != null) {
                     EditorGUI.indentLevel--;
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
                     EditorGUILayout.BeginVertical();
+                    methodDrawer.Filter = searchText;
                     methodDrawer.Draw();
                     EditorGUILayout.EndVertical();
                     EditorGUILayout.EndHorizontal();
                     EditorGUI.indentLevel++;
-                } else if (item != null) {
-                    if (item.Info != null && !string.IsNullOrEmpty(searchText) && item.Info.Name.IndexOf(searchText, StringComparison.CurrentCultureIgnoreCase) < 0)
+                } else if(item != null) {
+                    if(item.Info != null && !string.IsNullOrEmpty(searchText) && item.Info.Name.IndexOf(searchText, StringComparison.CurrentCultureIgnoreCase) < 0)
                         continue;
-                    if (fieldDrawer != null)
+                    if(fieldDrawer != null)
                         fieldDrawer.Draw(readOnly);
                     else
                         item.Draw();
                     changed |= item.UpdateIfChanged();
                 }
             }
-            if (allowMethods) {
+            if(allowMethods) {
                 GUILayout.BeginHorizontal();
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button(new GUIContent("+", "Add Method / Index Properties Watcher"), EditorStyles.miniButton, GUILayout.ExpandWidth(false)))
+                if(GUILayout.Button(new GUIContent("+", "Add Method / Index Properties Watcher"), EditorStyles.miniButton, GUILayout.ExpandWidth(false)))
                     AddMethodMenu();
                 GUILayout.EndHorizontal();
             }
@@ -174,37 +175,37 @@ namespace UInspectorPlus {
 
         private void DrawRequestRefs() {
             MethodPropertyDrawer removal = null;
-            foreach (var drawer in MethodPropertyDrawer.drawerRequestingReferences)
-                if (drawer.requiredType.IsAssignableFrom(targetType) &&
+            foreach(var drawer in MethodPropertyDrawer.drawerRequestingReferences)
+                if(drawer.requiredType.IsAssignableFrom(targetType) &&
                     GUILayout.Button($"Assign this object to {drawer.name}")) {
                     drawer.Value = target;
                     removal = drawer;
                 }
-            if (removal != null) MethodPropertyDrawer.drawerRequestingReferences.Remove(removal);
+            if(removal != null) MethodPropertyDrawer.drawerRequestingReferences.Remove(removal);
         }
 
         public void UpdateValues(bool updateProps) {
-            if (target == null) return;
-            foreach (var drawerItem in drawer) {
+            if(target == null) return;
+            foreach(var drawerItem in drawer) {
                 var propDrawer = drawerItem as MethodPropertyDrawer;
-                if (propDrawer == null)
+                if(propDrawer == null)
                     continue;
                 var isPropInfo = propDrawer.Info is PropertyInfo;
-                if (!isInternalType && (!updateProps || !propDrawer.Updatable) && isPropInfo)
+                if(!isInternalType && (!updateProps || !propDrawer.Updatable) && isPropInfo)
                     continue;
                 propDrawer.UpdateValue();
             }
         }
 
         public virtual void Dispose() {
-            foreach (var d in drawer)
-                if (d is IDisposable disposable)
+            foreach(var d in drawer)
+                if(d is IDisposable disposable)
                     disposable.Dispose();
             drawer.Clear();
         }
 
         protected void RequireRedraw() {
-            if (target != null && OnRequireRedraw != null)
+            if(target != null && OnRequireRedraw != null)
                 OnRequireRedraw();
         }
     }

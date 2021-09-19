@@ -31,29 +31,21 @@ namespace UInspectorPlus {
             GUILayout.BeginHorizontal(EditorStyles.toolbar);
             updateProps = GUILayout.Toggle(updateProps, "Update Props", EditorStyles.toolbarButton);
             GUILayout.Space(8);
-            drawer.searchText = EditorGUILayout.TextField(drawer.searchText, Helper.GetGUIStyle("ToolbarSeachTextField"));
-            if (GUILayout.Button(
-                GUIContent.none,
-                Helper.GetGUIStyle(
-                    string.IsNullOrEmpty(drawer.searchText) ?
-                    "ToolbarSeachCancelButtonEmpty" :
-                    "ToolbarSeachCancelButton"
-                )
-            )) {
-                drawer.searchText = string.Empty;
-                GUI.FocusControl(null);
-            }
+            drawer.searchText = Helper.ToolbarSearchField(drawer.searchText ?? string.Empty);
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
             scrollPos = GUILayout.BeginScrollView(scrollPos);
             EditorGUILayout.Space();
             drawer.Draw(false, isReadOnly);
-            if (drawer.changed) {
+            if(drawer.changed) {
                 drawer.changed = false;
-                if (parent != null && !parent.IsReadOnly &&
-                    ((parent.requiredType != null && parent.requiredType.IsValueType) || parent.Value != drawer.target) &&
-                    !Helper.AssignValue(parent.Info, parent.Target, drawer.target) && Helper.FetchValue(parent.Info, parent.Target, out var reverted))
-                    drawer.target = reverted;
+                if(parent != null && !parent.IsReadOnly &&
+                    ((parent.requiredType != null && parent.requiredType.IsValueType) || parent.Value != drawer.target))
+                    if(!Helper.AssignValue(parent.Info, parent.Target, drawer.target)) {
+                        object reverted;
+                        if(Helper.FetchValue(parent.Info, parent.Target, out reverted))
+                            drawer.target = reverted;
+                    }
             }
             GUILayout.FlexibleSpace();
             GUILayout.EndScrollView();
@@ -64,7 +56,7 @@ namespace UInspectorPlus {
         }
 
         private void OnInspectorUpdate() {
-            if (EditorGUIUtility.editingTextField)
+            if(EditorGUIUtility.editingTextField)
                 return;
             UpdateValues();
         }

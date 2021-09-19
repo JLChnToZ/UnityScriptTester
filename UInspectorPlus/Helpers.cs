@@ -73,9 +73,15 @@ namespace UInspectorPlus {
         // Delegate hacks to access the internal methods
         private delegate Gradient DoGradientField(GUIContent guiContent, Rect rect, Gradient gradient);
         private static readonly DoGradientField doGradientField = GetDelegate<EditorGUI, DoGradientField>("GradientField");
-
         private delegate Gradient DoLayoutGradientField(GUIContent guiContent, Gradient gradient, params GUILayoutOption[] options);
         private static readonly DoLayoutGradientField doLayoutGradiantField = GetDelegate<EditorGUILayout, DoLayoutGradientField>("GradientField");
+
+
+        private delegate string DoToolbarSearchField(string text, params GUILayoutOption[] options);
+        private static readonly DoToolbarSearchField doToolbarSearchField = GetDelegate<EditorGUILayout, DoToolbarSearchField>("ToolbarSearchField");
+
+        private delegate string DoToolbarDropDownSearchField(string text, string[] searchModes, ref int searchMode, params GUILayoutOption[] options);
+        private static readonly DoToolbarDropDownSearchField doToolbarDropDownSearchField = GetDelegate<EditorGUILayout, DoToolbarDropDownSearchField>("ToolbarSearchField");
 
         private static readonly Hashtable storedState = new Hashtable();
 
@@ -117,21 +123,21 @@ namespace UInspectorPlus {
 
         private static void AddPropertyTypeMap(string typeName, PropertyType propType) {
             Type type = Type.GetType(typeName, false, false);
-            if (type != null)
+            if(type != null)
                 propertyTypeMapper.Add(type, propType);
         }
 
         private static void AddBlacklistedType(string typeName, params string[] props) {
             Type type = Type.GetType(typeName, false, false);
-            if (type == null) return;
+            if(type == null) return;
             HashSet<string> list;
-            if (!blackListedTypes.TryGetValue(type, out list))
+            if(!blackListedTypes.TryGetValue(type, out list))
                 blackListedTypes.Add(type, list = new HashSet<string>());
             list.UnionWith(props);
         }
 
         internal static void StoreState(object key, object value) {
-            if (storedState.ContainsKey(key))
+            if(storedState.ContainsKey(key))
                 storedState[key] = value;
             else
                 storedState.Add(key, value);
@@ -142,7 +148,7 @@ namespace UInspectorPlus {
         }
 
         internal static void ReadOnlyLabelField(string label, string value) {
-            if (value.Contains('\r') || value.Contains('\n')) {
+            if(value.Contains('\r') || value.Contains('\n')) {
                 EditorGUILayout.PrefixLabel(label);
                 EditorGUILayout.SelectableLabel(value, EditorStyles.textArea);
             } else {
@@ -164,16 +170,16 @@ namespace UInspectorPlus {
 
         internal static bool IsInstanceMember(MemberInfo member, bool defaultResult = false) {
             var field = member as FieldInfo;
-            if (field != null) return !field.IsStatic;
+            if(field != null) return !field.IsStatic;
             var method = member as MethodBase;
             var property = member as PropertyInfo;
-            if (method == null && property != null) {
-                if (property.CanWrite)
+            if(method == null && property != null) {
+                if(property.CanWrite)
                     method = property.GetSetMethod();
                 else if(property.CanRead)
                     method = property.GetGetMethod();
             }
-            if (method != null) return !method.IsStatic;
+            if(method != null) return !method.IsStatic;
             return defaultResult;
         }
 
@@ -183,56 +189,56 @@ namespace UInspectorPlus {
             var field = member as FieldInfo;
             var property = member as PropertyInfo;
             var method = member as MethodInfo;
-            if (field != null) {
-                if (!field.IsPublic)
+            if(field != null) {
+                if(!field.IsPublic)
                     props.Add(simplifed ? "P" : "Private");
-                if (field.IsStatic)
+                if(field.IsStatic)
                     props.Add(simplifed ? "S" : "Static");
-                if (field.IsInitOnly)
+                if(field.IsInitOnly)
                     props.Add(simplifed ? "R" : "Read Only");
-                if (field.IsLiteral)
+                if(field.IsLiteral)
                     props.Add(simplifed ? "C" : "Constant");
-            } else if (method != null) {
-                if (!method.IsPublic)
+            } else if(method != null) {
+                if(!method.IsPublic)
                     props.Add(simplifed ? "P" : "Private");
-                if (method.IsStatic)
+                if(method.IsStatic)
                     props.Add(simplifed ? "S" : "Static");
-            } else if (property != null) {
-                if (property.CanRead && property.CanWrite)
+            } else if(property != null) {
+                if(property.CanRead && property.CanWrite)
                     props.Add(simplifed ? "RW" : "Read Write");
-                if (property.CanRead && (method = property.GetGetMethod()) != null) {
-                    if (!property.CanWrite)
+                if(property.CanRead && (method = property.GetGetMethod()) != null) {
+                    if(!property.CanWrite)
                         props.Add(simplifed ? "R" : "Read Only");
-                    if (!method.IsPublic)
+                    if(!method.IsPublic)
                         props.Add(simplifed ? "Pg" : "Private Get");
-                    if (method.IsStatic)
+                    if(method.IsStatic)
                         props.Add(simplifed ? "Sg" : "Static Get");
                 }
-                if (property.CanWrite && (method = property.GetSetMethod()) != null) {
-                    if (!property.CanRead)
+                if(property.CanWrite && (method = property.GetSetMethod()) != null) {
+                    if(!property.CanRead)
                         props.Add(simplifed ? "W" : "Write Only");
-                    if (!method.IsPublic)
+                    if(!method.IsPublic)
                         props.Add(simplifed ? "Ps" : "Private Set");
-                    if (method.IsStatic)
+                    if(method.IsStatic)
                         props.Add(simplifed ? "Ss" : "Static Set");
                 }
             }
-            if (props.Count > 0)
+            if(props.Count > 0)
                 ret.Append("(");
             JoinStringList(ret, props, simplifed ? "" : ", ");
-            if (props.Count > 0)
+            if(props.Count > 0)
                 ret.Append(") ");
-            if (appendMemberName)
+            if(appendMemberName)
                 ret.Append(member.Name);
             return ret.ToString();
         }
 
         internal static StringBuilder JoinStringList(StringBuilder sb, IEnumerable<string> list, string separator) {
-            if (sb == null)
+            if(sb == null)
                 sb = new StringBuilder();
             bool nonFirst = false;
-            foreach (var item in list) {
-                if (nonFirst)
+            foreach(var item in list) {
+                if(nonFirst)
                     sb.Append(separator);
                 sb.Append(item);
                 nonFirst = true;
@@ -245,7 +251,7 @@ namespace UInspectorPlus {
             var changed = GUI.changed;
             GUI.changed = false;
             cValue = EditorGUILayout.Vector3Field(label, cValue, options);
-            if (GUI.changed) return Quaternion.Euler(cValue);
+            if(GUI.changed) return Quaternion.Euler(cValue);
             GUI.changed = changed;
             return value;
         }
@@ -255,7 +261,7 @@ namespace UInspectorPlus {
             var changed = GUI.changed;
             GUI.changed = false;
             cValue = EditorGUI.Vector3Field(position, label, cValue);
-            if (GUI.changed) return Quaternion.Euler(cValue);
+            if(GUI.changed) return Quaternion.Euler(cValue);
             GUI.changed = changed;
             return value;
         }
@@ -280,8 +286,8 @@ namespace UInspectorPlus {
             itemNames = Array.ConvertAll(Enum.GetNames(type), x => new GUIContent(x));
             itemValues = Enum.GetValues(type);
             long val = Convert.ToInt64(rawValue);
-            for (int i = 0; i < itemValues.Length; i++)
-                if (Convert.ToInt64(itemValues.GetValue(i)) == val)
+            for(int i = 0; i < itemValues.Length; i++)
+                if(Convert.ToInt64(itemValues.GetValue(i)) == val)
                     return i;
             return 0;
         }
@@ -320,12 +326,12 @@ namespace UInspectorPlus {
             itemValues = Enum.GetValues(type);
             int maskVal = 0;
             long value = Convert.ToInt64(rawValue), itemValue;
-            for (int i = 0; i < itemValues.Length; i++) {
+            for(int i = 0; i < itemValues.Length; i++) {
                 itemValue = Convert.ToInt64(itemValues.GetValue(i));
-                if (itemValue != 0) {
-                    if ((value & itemValue) != 0)
+                if(itemValue != 0) {
+                    if((value & itemValue) != 0)
                         maskVal |= 1 << i;
-                } else if (value == 0)
+                } else if(value == 0)
                     maskVal |= 1 << i;
             }
             return maskVal;
@@ -334,11 +340,14 @@ namespace UInspectorPlus {
         private static object MaskedEnumFieldPostProcess(Type enumType, Array itemValues, object rawValue, int maskVal, int newMaskVal) {
             int changes = maskVal ^ newMaskVal;
             long value = Convert.ToInt64(rawValue), itemValue;
-            for (int i = 0; i < itemValues.Length; i++)
-                if ((changes & (1 << i)) != 0) {
+            for(int i = 0; i < itemValues.Length; i++)
+                if((changes & (1 << i)) != 0) {
                     itemValue = Convert.ToInt64(itemValues.GetValue(i));
-                    if ((newMaskVal & (1 << i)) != 0) {
-                        if (itemValue == 0) break;
+                    if((newMaskVal & (1 << i)) != 0) {
+                        if(itemValue == 0) {
+                            rawValue = 0;
+                            break;
+                        }
                         value |= itemValue;
                     } else
                         value &= ~itemValue;
@@ -348,31 +357,31 @@ namespace UInspectorPlus {
 
         internal static string StringField(GUIContent label, string value, bool readOnly, params GUILayoutOption[] options) {
             int length = value == null ? 0 : value.Length;
-            if (length > 5000) {
+            if(length > 5000) {
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.LabelField(label, new GUIContent("Text too long to display (" + length + " characters)"));
-                if (GUILayout.Button("Copy", GUILayout.ExpandWidth(false)))
+                if(GUILayout.Button("Copy", GUILayout.ExpandWidth(false)))
                     EditorGUIUtility.systemCopyBuffer = value;
-                if (!readOnly && GUILayout.Button("Paste", GUILayout.ExpandWidth(false))) {
+                if(!readOnly && GUILayout.Button("Paste", GUILayout.ExpandWidth(false))) {
                     value = EditorGUIUtility.systemCopyBuffer;
                     GUI.changed = true;
                 }
                 EditorGUILayout.EndHorizontal();
             } else {
                 int lines = CountLines(value);
-                if (lines > 1) {
+                if(lines > 1) {
                     var _opts = options.ToList();
                     _opts.Add(GUILayout.Height(EditorGUIUtility.singleLineHeight * lines));
                     _opts.Add(GUILayout.MaxWidth(EditorGUIUtility.currentViewWidth));
                     EditorGUILayout.BeginVertical();
                     EditorGUILayout.PrefixLabel(label);
-                    if (readOnly)
+                    if(readOnly)
                         EditorGUILayout.SelectableLabel(value, EditorStyles.textArea, _opts.ToArray());
                     else
                         value = EditorGUILayout.TextArea(value, _opts.ToArray());
                     EditorGUILayout.EndVertical();
                 } else {
-                    if (readOnly) {
+                    if(readOnly) {
                         var _opts = options.ToList();
                         _opts.Add(GUILayout.Height(EditorGUIUtility.singleLineHeight));
                         EditorGUILayout.BeginHorizontal();
@@ -387,11 +396,11 @@ namespace UInspectorPlus {
         }
 
         internal static string StringField(Rect position, GUIContent label, string value, bool readOnly) {
-            if (readOnly) {
+            if(readOnly) {
                 EditorGUI.SelectableLabel(position, value);
             } else {
                 int lines = position.height <= EditorGUIUtility.singleLineHeight ? 1 : CountLines(value);
-                if (lines > 1)
+                if(lines > 1)
                     EditorGUI.PrefixLabel(ScaleRect(position, heightScale: 0, offsetHeight: EditorGUIUtility.singleLineHeight), new GUIContent(label));
                 value = lines > 1 ?
                     EditorGUI.TextArea(ScaleRect(position, offsetY: EditorGUIUtility.singleLineHeight, offsetHeight: -EditorGUIUtility.singleLineHeight), value) :
@@ -401,23 +410,23 @@ namespace UInspectorPlus {
         }
 
         internal static UnityObject ObjectField(GUIContent label, UnityObject value, Type objectType, bool allowScreenObjs, bool readOnly, params GUILayoutOption[] options) {
-            if (!readOnly)
+            if(!readOnly)
                 return EditorGUILayout.ObjectField(label, value, objectType, allowScreenObjs, options);
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.PrefixLabel(label);
             var _opts = options.ToList();
             _opts.Add(GUILayout.Height(EditorGUIUtility.singleLineHeight));
-            if (GUILayout.Button(EditorGUIUtility.ObjectContent(value, objectType), EditorStyles.objectField, _opts.ToArray()))
+            if(GUILayout.Button(EditorGUIUtility.ObjectContent(value, objectType), EditorStyles.objectField, _opts.ToArray()))
                 ClickObject(value);
             EditorGUILayout.EndHorizontal();
             return value;
         }
 
         internal static UnityObject ObjectField(Rect position, GUIContent label, UnityObject value, Type objectType, bool allowScreenObjs, bool readOnly) {
-            if (!readOnly)
+            if(!readOnly)
                 return EditorGUI.ObjectField(position, label, value, objectType, allowScreenObjs);
             EditorGUI.PrefixLabel(ScaleRect(position, widthScale: 0.5F), label);
-            if (GUI.Button(ScaleRect(position, 0.5F, widthScale: 0.5F), EditorGUIUtility.ObjectContent(value, objectType), EditorStyles.objectField))
+            if(GUI.Button(ScaleRect(position, 0.5F, widthScale: 0.5F), EditorGUIUtility.ObjectContent(value, objectType), EditorStyles.objectField))
                 ClickObject(value);
             return value;
         }
@@ -430,30 +439,38 @@ namespace UInspectorPlus {
             return doLayoutGradiantField(label, value, options);
         }
 
+        internal static string ToolbarSearchField(string text, params GUILayoutOption[] options) {
+            return doToolbarSearchField(text, options);
+        }
+
+        internal static string ToolbarSearchField(string text, string[] searchModes, ref int searchMode, params GUILayoutOption[] options) {
+            return doToolbarDropDownSearchField(text, searchModes, ref searchMode, options);
+        }
+
         private static void ClickObject(UnityObject obj) {
             var newClickTime = EditorApplication.timeSinceStartup;
-            if (newClickTime - clickTime < 0.3 && obj != null)
+            if(newClickTime - clickTime < 0.3 && obj != null)
                 Selection.activeObject = obj;
             clickTime = newClickTime;
             EditorGUIUtility.PingObject(obj);
         }
 
         private static int CountLines(string str) {
-            if (string.IsNullOrEmpty(str))
+            if(string.IsNullOrEmpty(str))
                 return 1;
             int cursor = 0, count = 0, length = str.Length;
             bool isCR = false;
-            while (cursor < length) {
+            while(cursor < length) {
                 int i = str.IndexOf('\r', cursor);
-                if (i >= 0) {
+                if(i >= 0) {
                     count++;
                     isCR = true;
                     cursor = i + 1;
                     continue;
                 }
                 i = str.IndexOf('\n', cursor);
-                if (i >= 0) {
-                    if (!isCR || i != 0)
+                if(i >= 0) {
+                    if(!isCR || i != 0)
                         count++;
                     isCR = false;
                     cursor = i + 1;
@@ -468,9 +485,9 @@ namespace UInspectorPlus {
             try {
                 var fieldInfo = info as FieldInfo;
                 var propertyInfo = info as PropertyInfo;
-                if (fieldInfo != null && !fieldInfo.IsInitOnly && !fieldInfo.IsLiteral)
+                if(fieldInfo != null && !fieldInfo.IsInitOnly && !fieldInfo.IsLiteral)
                     fieldInfo.SetValue(target, value);
-                else if (propertyInfo != null && propertyInfo.CanWrite)
+                else if(propertyInfo != null && propertyInfo.CanWrite)
                     propertyInfo.SetValue(target, value, index);
                 else
                     return false;
@@ -482,10 +499,10 @@ namespace UInspectorPlus {
 
         internal static bool IsReadOnly(MemberInfo info) {
             var fieldInfo = info as FieldInfo;
-            if (fieldInfo != null)
+            if(fieldInfo != null)
                 return fieldInfo.IsInitOnly || fieldInfo.IsLiteral;
             var propertyInfo = info as PropertyInfo;
-            if (propertyInfo != null)
+            if(propertyInfo != null)
                 return !propertyInfo.CanWrite;
             return false;
         }
@@ -495,13 +512,13 @@ namespace UInspectorPlus {
             try {
                 var fieldInfo = info as FieldInfo;
                 var propertyInfo = info as PropertyInfo;
-                if (fieldInfo != null)
+                if(fieldInfo != null)
                     value = fieldInfo.GetValue(target);
-                else if (propertyInfo != null && propertyInfo.CanRead)
+                else if(propertyInfo != null && propertyInfo.CanRead)
                     value = propertyInfo.GetValue(target, index);
                 else
                     return false;
-            } catch (Exception ex) {
+            } catch(Exception ex) {
                 value = ex;
                 return false;
             }
@@ -510,28 +527,28 @@ namespace UInspectorPlus {
 
         internal static int ObjIdOrHashCode(object obj) {
             var unityObj = obj as UnityObject;
-            if (unityObj != null)
+            if(unityObj != null)
                 return unityObj.GetInstanceID();
-            if (obj != null)
+            if(obj != null)
                 return obj.GetHashCode();
             return 0;
         }
 
         internal static bool IsInterface(Type type, Type interfaceType) {
-            foreach (var iType in type.GetInterfaces())
-                if (iType == interfaceType || (iType.IsGenericType && iType.GetGenericTypeDefinition() == interfaceType))
+            foreach(var iType in type.GetInterfaces())
+                if(iType == interfaceType || (iType.IsGenericType && iType.GetGenericTypeDefinition() == interfaceType))
                     return true;
             return false;
         }
 
         internal static Type GetGenericListType(Type targetType) {
-            if (targetType.IsArray)
+            if(targetType.IsArray)
                 return targetType.GetElementType();
             bool hasNonGeneric = false;
-            foreach (Type type in targetType.GetInterfaces()) {
-                if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IList<>))
+            foreach(Type type in targetType.GetInterfaces()) {
+                if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IList<>))
                     return type.GetGenericArguments()[0];
-                if (type == typeof(IList))
+                if(type == typeof(IList))
                     hasNonGeneric = true;
             }
             return hasNonGeneric ? typeof(object) : null;
@@ -544,37 +561,37 @@ namespace UInspectorPlus {
         internal static T GetOrDefault<T>(object value, T defaultValue = default(T)) => value == null ? defaultValue : (T)value;
 
         internal static TDelegate GetDelegate<TDelegate>(string fromTypeName, string methodName, object target = null) where TDelegate : class {
-            if (fromTypeName == null)
+            if(fromTypeName == null)
                 throw new ArgumentNullException("fromTypeName");
             Type fromType = Type.GetType(fromTypeName, false);
-            if (fromType == null) return null;
+            if(fromType == null) return null;
             return GetDelegate<TDelegate>(fromType, methodName, target);
         }
 
         internal static TDelegate GetDelegate<TDelegate>(Type fromType, string methodName, object target = null) where TDelegate : class {
-            if (fromType == null)
+            if(fromType == null)
                 throw new ArgumentNullException("fromType");
-            if (methodName == null)
+            if(methodName == null)
                 throw new ArgumentNullException("methodName");
             Type delegateType = typeof(TDelegate);
             MethodInfo method = FindMethod(fromType, methodName, delegateType);
-            if (method == null)
+            if(method == null)
                 return null;
-            if (method.IsStatic)
+            if(method.IsStatic)
                 return Delegate.CreateDelegate(delegateType, method, false) as TDelegate;
-            if (target == null && fromType.IsValueType)
+            if(target == null && fromType.IsValueType)
                 target = Activator.CreateInstance(fromType);
             return Delegate.CreateDelegate(delegateType, target, method, false) as TDelegate;
         }
 
         internal static TDelegate GetDelegate<TFrom, TDelegate>(string methodName, TFrom target = default(TFrom)) where TDelegate : class {
-            if (methodName == null)
+            if(methodName == null)
                 throw new ArgumentNullException("methodName");
             Type delegateType = typeof(TDelegate);
             MethodInfo method = FindMethod(typeof(TFrom), methodName, delegateType);
-            if (method == null)
+            if(method == null)
                 return null;
-            if (method.IsStatic)
+            if(method.IsStatic)
                 return Delegate.CreateDelegate(delegateType, method, false) as TDelegate;
             return Delegate.CreateDelegate(delegateType, target, method, false) as TDelegate;
         }
@@ -585,10 +602,10 @@ namespace UInspectorPlus {
                 "Cannot determine what parameters does {0} have, " +
                 "as no Invoke(...) signature found. " +
                 "Perhaps this is not a valid delegate.";
-            if (!delegateType.IsSubclassOf(typeof(Delegate)))
+            if(!delegateType.IsSubclassOf(typeof(Delegate)))
                 throw new ArgumentException(string.Format(NotADelegateMsg, delegateType.Name));
             MethodInfo invokeMethod = delegateType.GetMethod("Invoke");
-            if (invokeMethod == null)
+            if(invokeMethod == null)
                 throw new ArgumentException(string.Format(MissingInvokeMsg, delegateType.Name));
             return fromType.GetMethod(
                 methodName,
@@ -599,9 +616,31 @@ namespace UInspectorPlus {
             );
         }
 
+        public static IEnumerable<Type> LooseGetTypes(Assembly assembly) {
+            for(int retries = 0; retries < 2; retries++)
+                try {
+                    return assembly.GetTypes();
+                } catch(ReflectionTypeLoadException typeLoadEx) {
+                    // Retry first!
+                    if(retries < 1) continue;
+                    // Some types don't like to be loaded, then ignore them.
+                    return from type in typeLoadEx.Types
+                           where type != null
+                           select type;
+                }
+            return null; // Should not reach here
+        }
+
         [MenuItem("Window/Inspector+")]
         public static void ShowInspectorPlus() {
             EditorWindow.GetWindow(typeof(InspectorPlus));
+        }
+
+        public static void PrintExceptionsWithInner(Exception ex) {
+            do {
+                Debug.LogException(ex);
+                ex = ex.InnerException;
+            } while(ex != null);
         }
     }
 }

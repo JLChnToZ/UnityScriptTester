@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -6,29 +7,31 @@ using UnityEditor;
 using System.Threading;
 
 namespace UInspectorPlus {
-    internal class TypeMatcher {
+    internal class TypeMatcher: IDisposable {
         public Thread bgWorker;
         public event Action OnRequestRedraw;
         private readonly HashSet<Type> searchedTypes = new HashSet<Type>();
+        private readonly List<Assembly> pendingAssemblies = new List<Assembly>();
+        private AppDomain currentDomain;
         private string searchText = string.Empty;
         private Type[] searchTypeResult = null;
 
         public string SearchText {
             get { return searchText; }
             set {
-                if (searchText == value) return;
+                if(searchText == value) return;
                 searchText = value;
-                if (bgWorker == null)
+                if(bgWorker == null)
                     bgWorker = new Thread(DoSearch) {
                         IsBackground = true,
                     };
-                if (!bgWorker.IsAlive)
+                if(!bgWorker.IsAlive)
                     bgWorker.Start();
             }
         }
 
         public void Draw() {
-            if (searchTypeResult == null || searchTypeResult.Length == 0) return;
+            if(searchTypeResult == null || searchTypeResult.Length == 0) return;
             GUIContent temp = new GUIContent();
             GUILayout.BeginVertical();
             GUILayout.Space(8);
@@ -38,14 +41,14 @@ namespace UInspectorPlus {
             );
             GUILayout.Space(8);
             int i = 0;
-            foreach (Type type in searchTypeResult) {
-                if (i++ >= 500) break;
+            foreach(Type type in searchTypeResult) {
+                if(i++ >= 500) break;
                 temp.text = type.FullName;
                 temp.tooltip = type.AssemblyQualifiedName;
-                if (GUILayout.Button(temp, EditorStyles.foldout))
+                if(GUILayout.Button(temp, EditorStyles.foldout))
                     InspectorChildWindow.OpenStatic(type, true, true, true, true, false, null);
             }
-            if (searchTypeResult.Length != i)
+            if(searchTypeResult.Length != i)
                 EditorGUILayout.HelpBox(
                     "Too many results, please try more specific search phase.",
                     MessageType.Warning
@@ -55,28 +58,53 @@ namespace UInspectorPlus {
         }
 
         private void InitSearch() {
-            if (searchedTypes.Count > 0) return;
-            searchedTypes.UnionWith(
-                from assembly in AppDomain.CurrentDomain.GetAssemblies()
-                from type in assembly.GetTypes()
-                select type
-            );
+            if(currentDomain == null) {
+                currentDomain = AppDomain.CurrentDomain;
+                searchedTypes.UnionWith(
+                    from assembly in currentDomain.GetAssemblies()
+                    from type in Helper.LooseGetTypes(assembly)
+                    select type
+                );
+                currentDomain.AssemblyLoad += OnAssemblyLoad;
+                currentDomain.DomainUnload += OnAppDomainUnload;
+            }
+            if(pendingAssemblies.Count > 0) {
+                var buffer = pendingAssemblies.ToArray();
+                pendingAssemblies.Clear();
+                searchedTypes.UnionWith(
+                    from assembly in buffer
+                    from type in Helper.LooseGetTypes(assembly)
+                    select type
+                );
+            }
+        }
+
+        private void OnAssemblyLoad(object sender, AssemblyLoadEventArgs e) {
+            pendingAssemblies.Add(e.LoadedAssembly);
+        }
+
+        private void OnAppDomainUnload(object sender, EventArgs e) {
+            currentDomain = null;
+        }
+
+        ~TypeMatcher() {
+            Dispose();
         }
 
         private void DoSearch() {
             try {
                 InitSearch();
                 var searchText = this.searchText;
-                while (true) {
+                while(true) {
                     Thread.Sleep(100);
                     List<Type> searchTypeResult = new List<Type>();
-                    if (!string.IsNullOrEmpty(searchText))
-                        foreach (Type type in searchedTypes) {
-                            if (searchText != this.searchText) break;
-                            if (type.AssemblyQualifiedName.Contains(searchText))
+                    if(!string.IsNullOrEmpty(searchText))
+                        foreach(Type type in searchedTypes) {
+                            if(searchText != this.searchText) break;
+                            if(type.AssemblyQualifiedName.Contains(searchText))
                                 searchTypeResult.Add(type);
                         }
-                    if (searchText == this.searchText) {
+                    if(searchText == this.searchText) {
                         this.searchTypeResult = searchTypeResult.ToArray();
                         break;
                     } else {
@@ -84,13 +112,35 @@ namespace UInspectorPlus {
                     }
                 }
                 EditorApplication.update += RequestRedraw;
+            } catch(Exception ex) {
+                Helper.PrintExceptionsWithInner(ex);
+            } finally {
                 bgWorker = null;
-            } catch { }
+            }
         }
 
         private void RequestRedraw() {
             EditorApplication.update -= RequestRedraw;
-            if (OnRequestRedraw != null) OnRequestRedraw.Invoke();
+            if(OnRequestRedraw != null) OnRequestRedraw.Invoke();
+        }
+
+        public void Dispose() {
+            try {
+                if(currentDomain != null) {
+                    currentDomain.AssemblyLoad -= OnAssemblyLoad;
+                    currentDomain.DomainUnload -= OnAppDomainUnload;
+                }
+            } catch {
+            } finally {
+                currentDomain = null;
+            }
+            try {
+                if(bgWorker != null && bgWorker.IsAlive)
+                    bgWorker.Abort();
+            } catch {
+            } finally {
+                bgWorker = null;
+            }
         }
     }
 }

@@ -20,11 +20,11 @@ namespace UInspectorPlus {
         }
 
         protected override void Draw(bool readOnly) {
-            if (showListEdit = EditorGUILayout.Foldout(showListEdit, string.Format("Edit List [{0} Items]", (target as IList).Count))) {
-                if (arrayHandler == null) {
-                    if (arrayContentDrawer == null) {
+            if(showListEdit = EditorGUILayout.Foldout(showListEdit, string.Format("Edit List [{0} Items]", (target as IList).Count))) {
+                if(arrayHandler == null) {
+                    if(arrayContentDrawer == null) {
                         arrayContentDrawer = new List<MethodPropertyDrawer>();
-                        for (int i = 0; i < (target as IList).Count; i++)
+                        for(int i = 0; i < (target as IList).Count; i++)
                             ListAddItem();
                     }
                     arrayHandler = new ReorderableList(target as IList, elementType) {
@@ -33,7 +33,7 @@ namespace UInspectorPlus {
                         drawElementCallback = (r, i, c, d) => {
                             arrayContentDrawer[i].Value = (target as IList)[i];
                             arrayContentDrawer[i].Draw(false, Helper.ScaleRect(r, offsetHeight: -2));
-                            if (arrayContentDrawer[i].Changed)
+                            if(arrayContentDrawer[i].Changed)
                                 (target as IList)[i] = arrayContentDrawer[i].Value;
                         },
                         drawHeaderCallback = r => GUI.Label(r, target.ToString(), EditorStyles.miniBoldLabel),
