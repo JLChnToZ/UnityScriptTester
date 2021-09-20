@@ -616,6 +616,9 @@ namespace UInspectorPlus {
             );
         }
 
+        // Special checker to deal with "null" UnityEngine.Object (Internally null, but still exists in Mono heap)
+        internal static bool IsInvalid(object obj) => obj is UnityObject uObj ? uObj == null : obj == null;
+
         public static IEnumerable<Type> LooseGetTypes(Assembly assembly) {
             for(int retries = 0; retries < 2; retries++)
                 try {

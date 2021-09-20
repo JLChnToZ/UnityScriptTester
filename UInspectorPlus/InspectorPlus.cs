@@ -36,13 +36,9 @@ namespace UInspectorPlus {
             typeMatcher.OnRequestRedraw += Repaint;
         }
 
-        private void OnDisable() {
-            typeMatcher.OnRequestRedraw -= Repaint;
-        }
+        private void OnDisable() => typeMatcher.OnRequestRedraw -= Repaint;
 
-        private void OnDestroy() {
-            typeMatcher.Dispose();
-        }
+        private void OnDestroy() => typeMatcher.Dispose();
 
         private void Initialize() {
             if(initialized) return;
@@ -187,13 +183,15 @@ namespace UInspectorPlus {
             EditorPrefs.SetInt("inspectorplus_searchmode", searchMode);
         }
 
-        private void OnSelectionChange() {
+        private void OnSelectionChange() => CheckSelection();
+
+        private void CheckSelection(bool callFromUpdate = false) {
             if(!locked)
                 instanceIds = Selection.instanceIDs;
             var pendingRemoveDrawers = new List<InspectorDrawer[]>();
             var pendingAddDrawers = new List<InspectorDrawer[]>();
             foreach(var drawer in drawers)
-                if(drawer.Length <= 0 || drawer[0].target == null || !instanceIds.Contains(Helper.ObjIdOrHashCode(drawer[0].target))) {
+                if(drawer.Length <= 0 || Helper.IsInvalid(drawer[0].target) || !instanceIds.Contains(Helper.ObjIdOrHashCode(drawer[0].target))) {
                     pendingRemoveDrawers.Add(drawer);
                     foreach(var d in drawer) d.Dispose();
                 }
@@ -202,12 +200,13 @@ namespace UInspectorPlus {
                 if(drawers.FindIndex(drawer => Helper.ObjIdOrHashCode(drawer[0].target) == instanceID) < 0)
                     pendingAddDrawers.Add(CreateDrawers(instanceID));
             drawers.AddRange(pendingAddDrawers);
-            UpdateValues();
+            if(!callFromUpdate)
+                UpdateValues();
         }
 
         private InspectorDrawer[] CreateDrawers(int instanceID) {
             var target = EditorUtility.InstanceIDToObject(instanceID);
-            if(target == null)
+            if(Helper.IsInvalid(target))
                 return new InspectorDrawer[0];
             var ret = new List<InspectorDrawer>();
             try {
@@ -247,13 +246,25 @@ namespace UInspectorPlus {
                 each(methodDrawer);
         }
 
-        private void UpdateValues() {
-            UpdateValues(forceUpdateProps || EditorApplication.isPlaying);
-        }
+        private void UpdateValues() => UpdateValues(forceUpdateProps || EditorApplication.isPlaying);
 
         private void UpdateValues(bool updateProps) {
-            foreach(var drawerGroup in drawers.SelectMany(drawer => drawer))
-                drawerGroup.UpdateValues(updateProps);
+            for(int i = 0; i < drawers.Count; i++) {
+                var drawerGroup = drawers[i];
+                if(drawerGroup.Length == 0 || Helper.IsInvalid(drawerGroup[0].target)) {
+                    CheckSelection(true);
+                    break;
+                }
+                int instanceID = Helper.ObjIdOrHashCode(drawerGroup[0].target);
+                for(int j = 0; j < drawerGroup.Length; j++) {
+                    if(Helper.IsInvalid(drawerGroup[j].target)) {
+                        drawers[i] = CreateDrawers(instanceID);
+                        break;
+                    }
+                    if(drawerGroup[j].shown)
+                        drawerGroup[j].UpdateValues(updateProps);
+                }
+            }
             Repaint();
         }
 

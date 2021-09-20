@@ -34,7 +34,7 @@ namespace UInspectorPlus {
         public GenericMenu.MenuFunction OnClose;
 
         public bool ShouldDrawHeader {
-            get { return drawHeader; }
+            get => drawHeader;
             set {
                 drawHeader = value;
                 paramsFolded &= value;
@@ -47,7 +47,7 @@ namespace UInspectorPlus {
         public object Value => result?.Value;
 
         public bool AllowPrivateFields {
-            get { return privateFields; }
+            get => privateFields;
             set {
                 privateFields = value;
                 InitComponentMethods(false);
@@ -55,7 +55,7 @@ namespace UInspectorPlus {
         }
 
         public bool AllowObsolete {
-            get { return obsolete; }
+            get => obsolete;
             set {
                 obsolete = value;
                 InitComponentMethods(false);

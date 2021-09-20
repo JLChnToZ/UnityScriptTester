@@ -272,7 +272,7 @@ namespace UInspectorPlus {
         public void Draw() => Draw(false);
 
         public void Draw(bool readOnly, Rect? rect = null) {
-            if(target == null && Helper.IsInstanceMember(memberInfo))
+            if(Helper.IsInvalid(target) && Helper.IsInstanceMember(memberInfo))
                 return;
             readOnly |= isInfoReadonly;
             var referenceModeBtn = (!allowReferenceMode && (
@@ -358,7 +358,7 @@ namespace UInspectorPlus {
         }
 
         private void AddField(UnityObject target) {
-            if(target == null)
+            if(Helper.IsInvalid(target))
                 return;
             BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
             if(privateFields)
@@ -627,7 +627,7 @@ namespace UInspectorPlus {
         }
 
         private void DrawUnknownField(bool readOnly, object target, Rect? position = null) {
-            if(target == null)
+            if(Helper.IsInvalid(target))
                 return;
             bool clicked;
             if(!position.HasValue)

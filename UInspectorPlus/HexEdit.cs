@@ -6,7 +6,7 @@ using UnityEditor;
 namespace UInspectorPlus {
     internal class HexEdit: InspectorDrawer {
         [SerializeField] private Vector2 scrollPos;
-        public byte[] Data { get => target as byte[]; }
+        public byte[] Data => target as byte[];
         public int columns = 16;
         private GUIContent temp = new GUIContent();
 

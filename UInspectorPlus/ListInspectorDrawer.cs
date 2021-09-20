@@ -37,7 +37,7 @@ namespace UInspectorPlus {
                                 (target as IList)[i] = arrayContentDrawer[i].Value;
                         },
                         drawHeaderCallback = r => GUI.Label(r, target.ToString(), EditorStyles.miniBoldLabel),
-                        onCanAddCallback = l => target != null && !(target as IList).IsFixedSize,
+                        onCanAddCallback = l => !Helper.IsInvalid(target) && !(target as IList).IsFixedSize,
                         onAddCallback = l => {
                             ReorderableList.defaultBehaviours.DoAddButton(l);
                             ListAddItem();

@@ -59,7 +59,7 @@ namespace UInspectorPlus {
         public InspectorDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
             this.target = target;
             BindingFlags flag = BindingFlags.Static | BindingFlags.Public;
-            if(target != null)
+            if(!Helper.IsInvalid(target))
                 flag |= BindingFlags.Instance;
             if(allowPrivate = showPrivateFields)
                 flag |= BindingFlags.NonPublic;
@@ -104,7 +104,7 @@ namespace UInspectorPlus {
                 AddMethodMenu();
             foreach(var d in drawer)
                 d.OnRequireRedraw += RequireRedraw;
-            if(target != null)
+            if(!Helper.IsInvalid(target))
                 this.shown = Helper.GetState(target, shown);
         }
 
@@ -120,7 +120,7 @@ namespace UInspectorPlus {
         public void Draw(bool drawHeader = true, bool readOnly = false) {
             if(drawHeader) {
                 shown = EditorGUILayout.InspectorTitlebar(shown, target as UnityObject);
-                if(target != null)
+                if(!Helper.IsInvalid(target))
                     Helper.StoreState(target, shown);
                 if(!shown)
                     return;
@@ -142,9 +142,7 @@ namespace UInspectorPlus {
 
         protected virtual void Draw(bool readOnly) {
             foreach(var item in drawer) {
-                var methodDrawer = item as ComponentMethodDrawer;
-                var fieldDrawer = item as MethodPropertyDrawer;
-                if(methodDrawer != null) {
+                if(item is ComponentMethodDrawer methodDrawer) {
                     EditorGUI.indentLevel--;
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
@@ -157,7 +155,7 @@ namespace UInspectorPlus {
                 } else if(item != null) {
                     if(item.Info != null && !string.IsNullOrEmpty(searchText) && item.Info.Name.IndexOf(searchText, StringComparison.CurrentCultureIgnoreCase) < 0)
                         continue;
-                    if(fieldDrawer != null)
+                    if(item is MethodPropertyDrawer fieldDrawer)
                         fieldDrawer.Draw(readOnly);
                     else
                         item.Draw();
@@ -184,8 +182,8 @@ namespace UInspectorPlus {
             if(removal != null) MethodPropertyDrawer.drawerRequestingReferences.Remove(removal);
         }
 
-        public void UpdateValues(bool updateProps) {
-            if(target == null) return;
+        public virtual void UpdateValues(bool updateProps) {
+            if(Helper.IsInvalid(target)) return;
             foreach(var drawerItem in drawer) {
                 var propDrawer = drawerItem as MethodPropertyDrawer;
                 if(propDrawer == null)
@@ -205,7 +203,7 @@ namespace UInspectorPlus {
         }
 
         protected void RequireRedraw() {
-            if(target != null && OnRequireRedraw != null)
+            if(!Helper.IsInvalid(target) && OnRequireRedraw != null)
                 OnRequireRedraw();
         }
     }

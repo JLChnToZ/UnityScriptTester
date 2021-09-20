@@ -51,9 +51,7 @@ namespace UInspectorPlus {
             GUILayout.EndScrollView();
         }
 
-        private void OnDestroy() {
-            drawer.Dispose();
-        }
+        private void OnDestroy() => drawer.Dispose();
 
         private void OnInspectorUpdate() {
             if(EditorGUIUtility.editingTextField)
