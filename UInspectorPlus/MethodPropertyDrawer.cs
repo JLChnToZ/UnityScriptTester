@@ -42,7 +42,7 @@ namespace UInspectorPlus {
         private Exception getException;
 
         public UnityObject Component {
-            get { return component; }
+            get => component;
             set {
                 component = value;
                 if(selectedField != null && selectedField.DeclaringType != null && !selectedField.DeclaringType.IsInstanceOfType(component))
@@ -53,7 +53,7 @@ namespace UInspectorPlus {
         }
 
         public MemberInfo Info {
-            get { return memberInfo; }
+            get => memberInfo;
             set {
                 memberInfo = value;
                 if(memberInfo != null)
@@ -62,7 +62,7 @@ namespace UInspectorPlus {
         }
 
         public MemberInfo RefFieldInfo {
-            get { return selectedField ?? selectedProperty as MemberInfo; }
+            get => selectedField ?? selectedProperty as MemberInfo;
             set {
                 if(component == null)
                     return;
@@ -84,7 +84,7 @@ namespace UInspectorPlus {
         public bool Updatable { get; set; }
 
         public bool AllowReferenceMode {
-            get { return allowReferenceMode; }
+            get => allowReferenceMode;
             set {
                 allowReferenceMode = value;
                 if(!value && referenceMode)
@@ -93,7 +93,7 @@ namespace UInspectorPlus {
         }
 
         public bool ReferenceMode {
-            get { return referenceMode; }
+            get => referenceMode;
             set {
                 referenceMode = value && allowReferenceMode;
                 fields.Clear();
@@ -111,9 +111,7 @@ namespace UInspectorPlus {
         }
 
         public bool AllowPrivateFields {
-            get {
-                return privateFields;
-            }
+            get => privateFields;
             set {
                 privateFields = value;
                 if(referenceMode)
@@ -124,9 +122,7 @@ namespace UInspectorPlus {
         }
 
         public bool AllowObsolete {
-            get {
-                return obsolete;
-            }
+            get => obsolete;
             set {
                 obsolete = value;
                 if(referenceMode)
@@ -158,7 +154,7 @@ namespace UInspectorPlus {
         }
 
         public Exception GetException {
-            get { return getException; }
+            get => getException;
             set {
                 getException = value;
                 if(Updatable)
@@ -352,6 +348,8 @@ namespace UInspectorPlus {
             return false;
         }
 
+        public void SetDirty() => Changed = true;
+
         public void Dispose() {
             drawerRequestingReferences.Remove(this);
             if(ctorDrawer != null) ctorDrawer.Dispose();
@@ -408,6 +406,7 @@ namespace UInspectorPlus {
             EditorGUI.indentLevel--;
             if(ctorDrawer.Value != null) {
                 rawValue = ctorDrawer.Value;
+                Changed = true;
                 grabValueMode = 0;
                 RequireRedraw();
             }

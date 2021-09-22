@@ -5,22 +5,53 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Linq;
 using UnityObject = UnityEngine.Object;
-using System.Runtime.CompilerServices;
 
 namespace UInspectorPlus {
-    internal struct TypedDrawer {
-        public Type drawerType;
-        public Type targetType;
-        public int priority;
+    internal struct TypedDrawer: IEquatable<TypedDrawer> {
+        public readonly Type drawerType;
+        public readonly Type targetType;
+        public readonly int priority;
+
+        public TypedDrawer(Type drawerType, Type targetType, int priority) {
+            this.drawerType = drawerType;
+            this.targetType = targetType;
+            this.priority = priority;
+        }
+
+        public override int GetHashCode() {
+            return drawerType.GetHashCode() ^ targetType.GetHashCode();
+        }
+
+        public override bool Equals(object obj) => obj is TypedDrawer other && Equals(other);
+
+        public bool Equals(TypedDrawer other) =>
+            drawerType.Equals(other.drawerType) &&
+            targetType.Equals(other.targetType);
+    }
+
+    [AttributeUsage(AttributeTargets.Class)]
+    public class CustomInspectorDrawerAttribute: Attribute {
+        public Type TargetType { get; private set; }
+        public int Priority { get; private set; }
+
+        public CustomInspectorDrawerAttribute(Type targetType, int priority = 0) {
+            TargetType = targetType;
+            Priority = priority;
+        }
+
+        internal TypedDrawer ToDrawer(Type drawerType) => new TypedDrawer(drawerType, TargetType, Priority);
+
+        internal static CustomInspectorDrawerAttribute[] GetAttributes(Type type) =>
+            GetCustomAttributes(type, typeof(CustomInspectorDrawerAttribute)) as CustomInspectorDrawerAttribute[] ??
+            new CustomInspectorDrawerAttribute[0];
     }
 
     public class InspectorDrawer: IDisposable {
-        private static readonly List<TypedDrawer> typedDrawers = new List<TypedDrawer>();
+        private static readonly HashSet<TypedDrawer> typedDrawers = new HashSet<TypedDrawer>();
         public object target;
         internal readonly List<IReflectorDrawer> drawer = new List<IReflectorDrawer>();
         private readonly HashSet<IReflectorDrawer> removingDrawers = new HashSet<IReflectorDrawer>();
         public bool shown;
-        public bool isInternalType;
         public bool changed;
         public string searchText;
         public event Action OnRequireRedraw;
@@ -28,19 +59,23 @@ namespace UInspectorPlus {
         protected bool allowPrivate;
         protected readonly bool allowMethods;
 
-        public static void RegisterCustomInspectorDrawer<T>(Type targetType, int priority = 0) where T : InspectorDrawer {
-            typedDrawers.Add(new TypedDrawer {
-                targetType = targetType,
-                drawerType = typeof(T),
-                priority = priority
-            });
+        static InspectorDrawer() {
+            var currentDomain = AppDomain.CurrentDomain;
+            currentDomain.AssemblyLoad += OnAssemblyLoad;
+            foreach(var assembly in currentDomain.GetAssemblies())
+                RegisterInspectorDrawers(assembly);
         }
 
+        private static void OnAssemblyLoad(object sender, AssemblyLoadEventArgs args) => RegisterInspectorDrawers(args.LoadedAssembly);
+
+        private static void RegisterInspectorDrawers(Assembly assembly) {
+            foreach(var type in assembly.GetTypes())
+                if(type.IsClass && !type.IsAbstract && type.IsSubclassOf(typeof(InspectorDrawer)))
+                    typedDrawers.UnionWith(CustomInspectorDrawerAttribute.GetAttributes(type).Select(drawer => drawer.ToDrawer(type)));
+        }
+
+
         public static InspectorDrawer GetDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
-            foreach(var type in AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(asm => asm.GetTypes())
-                .Where(type => type.IsClass && !type.IsAbstract && type.IsSubclassOf(typeof(InspectorDrawer))))
-                RuntimeHelpers.RunClassConstructor(type.TypeHandle);
             int lastPriority = int.MinValue;
             Type drawerType = null;
             try {
@@ -66,7 +101,6 @@ namespace UInspectorPlus {
             this.targetType = targetType;
             var fields = targetType.GetFields(flag);
             var props = !showProps ? null : targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray();
-            isInternalType = !targetType.IsSubclassOf(typeof(MonoBehaviour)) || Attribute.IsDefined(targetType, typeof(ExecuteInEditMode));
             foreach(var field in fields)
                 try {
                     if(!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
@@ -91,6 +125,7 @@ namespace UInspectorPlus {
                             continue;
                         if(!showObsolete && Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
                             continue;
+                        bool isInternalType = Helper.IsInternalType(prop.DeclaringType);
                         drawer.Add(new MethodPropertyDrawer(prop, target, showPrivateFields, showObsolete, prop.CanRead && EditorApplication.isPlaying) {
                             AllowReferenceMode = false,
                             Updatable = isInternalType || Helper.GetState(prop, false),
@@ -177,6 +212,7 @@ namespace UInspectorPlus {
                 if(drawer.requiredType.IsAssignableFrom(targetType) &&
                     GUILayout.Button($"Assign this object to {drawer.name}")) {
                     drawer.Value = target;
+                    drawer.SetDirty();
                     removal = drawer;
                 }
             if(removal != null) MethodPropertyDrawer.drawerRequestingReferences.Remove(removal);
@@ -189,7 +225,7 @@ namespace UInspectorPlus {
                 if(propDrawer == null)
                     continue;
                 var isPropInfo = propDrawer.Info is PropertyInfo;
-                if(!isInternalType && (!updateProps || !propDrawer.Updatable) && isPropInfo)
+                if(!Helper.IsInternalType(propDrawer.Info.DeclaringType) && (!updateProps || !propDrawer.Updatable) && isPropInfo)
                     continue;
                 propDrawer.UpdateValue();
             }

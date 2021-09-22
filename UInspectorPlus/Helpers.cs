@@ -3,8 +3,8 @@ using UnityEditor;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using UnityObject = UnityEngine.Object;
 
@@ -618,6 +618,11 @@ namespace UInspectorPlus {
 
         // Special checker to deal with "null" UnityEngine.Object (Internally null, but still exists in Mono heap)
         internal static bool IsInvalid(object obj) => obj is UnityObject uObj ? uObj == null : obj == null;
+
+        internal static bool IsInternalType(Type type) => !(
+            type.IsSubclassOf(typeof(MonoBehaviour)) ||
+            type.IsSubclassOf(typeof(StateMachineBehaviour))
+        ) || Attribute.IsDefined(type, typeof(ExecuteInEditMode));
 
         public static IEnumerable<Type> LooseGetTypes(Assembly assembly) {
             for(int retries = 0; retries < 2; retries++)

@@ -2,9 +2,8 @@
 using System;
 
 namespace UInspectorPlus {
+    [CustomInspectorDrawer(typeof(Type), -1)]
     internal class TypeInspectorDrawer: InspectorDrawer {
-        static TypeInspectorDrawer() => RegisterCustomInspectorDrawer<TypeInspectorDrawer>(typeof(Type), -1);
-
         public TypeInspectorDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) :
             base(target, targetType, shown, showProps, showPrivateFields, showObsolete, showMethods) {
         }

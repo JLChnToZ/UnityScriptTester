@@ -6,13 +6,12 @@ using System.Collections;
 using System.Collections.Generic;
 
 namespace UInspectorPlus {
+    [CustomInspectorDrawer(typeof(IList), -2)]
     internal class ListInspectorDrawer: InspectorDrawer {
         private List<MethodPropertyDrawer> arrayContentDrawer;
         private ReorderableList arrayHandler;
         private bool showListEdit;
         private readonly Type elementType;
-
-        static ListInspectorDrawer() => RegisterCustomInspectorDrawer<ListInspectorDrawer>(typeof(IList), -2);
 
         public ListInspectorDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) :
             base(target, targetType, shown, showProps, showPrivateFields, showObsolete, showMethods) {
