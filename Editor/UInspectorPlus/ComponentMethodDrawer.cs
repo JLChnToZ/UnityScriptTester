@@ -7,7 +7,7 @@ using System.Linq;
 using System.Reflection;
 using UnityObject = UnityEngine.Object;
 
-namespace UInspectorPlus {
+namespace JLChnToZ.EditorExtensions.UInspectorPlus {
     internal class ComponentMethodDrawer: IReflectorDrawer, IDisposable {
         private object component;
         private readonly List<ComponentMethod> methods = new List<ComponentMethod>();
@@ -107,7 +107,7 @@ namespace UInspectorPlus {
                 return;
             switch (mode) {
                 case MethodMode.Constructor: if (ctorType == null) return; break;
-                case MethodMode.Method: if (component == null && Helper.IsInstanceMember(selectedMember)) return; break;
+                case MethodMode.Method: if (component == null && selectedMember.IsInstanceMember()) return; break;
                 default: if (component == null) return; break;
             }
             try {
@@ -172,7 +172,7 @@ namespace UInspectorPlus {
                 if (mode != MethodMode.Indexer || result == null)
                     EditorGUILayout.Space();
                 if (mode == MethodMode.Constructor ||
-                    (mode == MethodMode.Method && (component != null || !Helper.IsInstanceMember(selectedMember))) ||
+                    (mode == MethodMode.Method && (component != null || !selectedMember.IsInstanceMember())) ||
                     (mode == MethodMode.Indexer && component != null && result == null)) {
                     if (GUI.changed) {
                         InitComponentMethods();
@@ -223,7 +223,7 @@ namespace UInspectorPlus {
         }
 
         private void AddComponentMethod(Type type) {
-            BindingFlags flag = BindingFlags.Static | BindingFlags.Public;
+            BindingFlags flag = BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy;
             if (component != null)
                 flag |= BindingFlags.Instance;
             if (privateFields)
@@ -248,7 +248,7 @@ namespace UInspectorPlus {
         }
 
         private void AddComponentMethod(object target, Type type = null) {
-            BindingFlags flag = BindingFlags.Static | BindingFlags.Public;
+            BindingFlags flag = BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy;
             if (privateFields)
                 flag |= BindingFlags.NonPublic;
             if (target != null)
@@ -291,7 +291,7 @@ namespace UInspectorPlus {
                 if (gameObject != null)
                     foreach (var c in gameObject.GetComponents(typeof(Component)))
                         AddComponentMethod(c);
-                methodNames = methods.Select((m, i) => $"{m.target.GetType().Name} ({Helper.ObjIdOrHashCode(m.target)})/{GetMethodNameFormatted(m, i)}").ToArray();
+                methodNames = methods.Select((m, i) => $"{m.target.GetType().Name} ({m.target.ObjIdOrHashCode()})/{GetMethodNameFormatted(m, i)}").ToArray();
             } else {
                 methodNames = methods.Select((m, i) => GetMethodNameFormatted(m, i)).ToArray();
             }
@@ -320,7 +320,7 @@ namespace UInspectorPlus {
                     break;
                 case MethodMode.Method:
                 default:
-                    name = Helper.GetMemberName(m.member as MemberInfo).Replace('_', ' ');
+                    name = m.member.GetMemberName().Replace('_', ' ');
                     break;
             }
             switch (m.mode) {
@@ -370,7 +370,7 @@ namespace UInspectorPlus {
                 EditorGUILayout.BeginHorizontal();
             selectedMethodIndex = EditorGUILayout.Popup(mode.ToString(), selectedMethodIndex, methodNames);
             if (OnClose != null) {
-                if (GUILayout.Button("-", EditorStyles.miniButton, GUILayout.ExpandWidth(false)))
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Minus"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
                     OnClose();
                 EditorGUILayout.EndHorizontal();
             }
@@ -406,7 +406,7 @@ namespace UInspectorPlus {
                 EditorGUILayout.BeginVertical();
                 if (mode != MethodMode.Indexer && (selectedMember as MethodInfo).ContainsGenericParameters)
                     EditorGUILayout.HelpBox("Generic method is not supported.", MessageType.Warning);
-                if (mode != MethodMode.Indexer && component == null && Helper.IsInstanceMember(selectedMember))
+                if (mode != MethodMode.Indexer && component == null && selectedMember.IsInstanceMember())
                     EditorGUILayout.HelpBox("Method requires an exists instance.", MessageType.Warning);
                 else {
                     if (parameterInfo.Length == 0)
@@ -457,7 +457,7 @@ namespace UInspectorPlus {
                     break;
                 case MethodMode.Method:
                 default:
-                    execute = GUILayout.Button("Execute " + selectedMember.Name);
+                    execute = GUILayout.Button($"Execute {selectedMember.Name}");
                     break;
             }
             if (execute)

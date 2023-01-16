@@ -2,7 +2,7 @@
 using UnityEditor;
 using System;
 
-namespace UInspectorPlus {
+namespace JLChnToZ.EditorExtensions.UInspectorPlus {
     internal class InspectorChildWindow: EditorWindow {
         private InspectorDrawer drawer;
         private MethodPropertyDrawer parent;
@@ -42,8 +42,7 @@ namespace UInspectorPlus {
                 if(parent != null && !parent.IsReadOnly &&
                     ((parent.requiredType != null && parent.requiredType.IsValueType) || parent.Value != drawer.target))
                     if(!Helper.AssignValue(parent.Info, parent.Target, drawer.target)) {
-                        object reverted;
-                        if(Helper.FetchValue(parent.Info, parent.Target, out reverted))
+                        if(parent.Info.FetchValue(parent.Target, out var reverted))
                             drawer.target = reverted;
                     }
             }

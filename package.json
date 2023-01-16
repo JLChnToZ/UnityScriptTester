@@ -1,0 +1,13 @@
+{
+  "name": "idv.jlchntoz.editorutils",
+  "version": "0.6.0",
+  "displayName": "JLChnToZ Editor Utilities",
+  "description": "This is an editor utilities collections includes Inspector+",
+  "licensesUrl": "https://github.com/JLChnToZ/UnityScriptTester/blob/master/LICENSE",
+  "keywords": ["Utility", "Inspector"],
+  "author": {
+    "name": "Jeremy Lam aka. Vistanz",
+    "email": "me@moka-rin.moe",
+    "url": "https://code.moka-rin.moe"
+  }
+}

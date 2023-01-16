@@ -6,13 +6,14 @@ using System.Reflection;
 using System.Linq;
 using UnityObject = UnityEngine.Object;
 
-namespace UInspectorPlus {
+namespace JLChnToZ.EditorExtensions.UInspectorPlus {
     internal struct TypedDrawer: IEquatable<TypedDrawer> {
+        private static readonly TypedDrawer[] emptyDrawers = new TypedDrawer[0];
         public readonly Type drawerType;
         public readonly Type targetType;
         public readonly int priority;
 
-        public TypedDrawer(Type drawerType, Type targetType, int priority) {
+        private TypedDrawer(Type drawerType, Type targetType, int priority) {
             this.drawerType = drawerType;
             this.targetType = targetType;
             this.priority = priority;
@@ -27,6 +28,19 @@ namespace UInspectorPlus {
         public bool Equals(TypedDrawer other) =>
             drawerType.Equals(other.drawerType) &&
             targetType.Equals(other.targetType);
+
+        internal static TypedDrawer[] Of(Type type) {
+            if (type.IsClass && !type.IsAbstract && type.IsSubclassOf(typeof(InspectorDrawer))) {
+                var attributes = Attribute.GetCustomAttributes(type, typeof(CustomInspectorDrawerAttribute)) as CustomInspectorDrawerAttribute[];
+                if (attributes != null && attributes.Length > 0) {
+                    var drawers = new TypedDrawer[attributes.Length];
+                    for (int i = 0; i < attributes.Length; i++)
+                        drawers[i] = new TypedDrawer(type, attributes[i].TargetType, attributes[i].Priority);
+                    return drawers;
+                }
+            }
+            return emptyDrawers;
+        }
     }
 
     [AttributeUsage(AttributeTargets.Class)]
@@ -38,12 +52,6 @@ namespace UInspectorPlus {
             TargetType = targetType;
             Priority = priority;
         }
-
-        internal TypedDrawer ToDrawer(Type drawerType) => new TypedDrawer(drawerType, TargetType, Priority);
-
-        internal static CustomInspectorDrawerAttribute[] GetAttributes(Type type) =>
-            GetCustomAttributes(type, typeof(CustomInspectorDrawerAttribute)) as CustomInspectorDrawerAttribute[] ??
-            new CustomInspectorDrawerAttribute[0];
     }
 
     public class InspectorDrawer: IDisposable {
@@ -70,18 +78,18 @@ namespace UInspectorPlus {
 
         private static void RegisterInspectorDrawers(Assembly assembly) {
             foreach(var type in assembly.GetTypes())
-                if(type.IsClass && !type.IsAbstract && type.IsSubclassOf(typeof(InspectorDrawer)))
-                    typedDrawers.UnionWith(CustomInspectorDrawerAttribute.GetAttributes(type).Select(drawer => drawer.ToDrawer(type)));
+                typedDrawers.UnionWith(TypedDrawer.Of(type));
         }
-
 
         public static InspectorDrawer GetDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
             int lastPriority = int.MinValue;
             Type drawerType = null;
             try {
                 foreach(var kv in typedDrawers)
-                    if(kv.targetType.IsAssignableFrom(targetType) && kv.priority > lastPriority)
+                    if(kv.targetType.IsAssignableFrom(targetType) && kv.priority > lastPriority) {
                         drawerType = kv.drawerType;
+                        lastPriority = kv.priority;
+                    }
                 if(drawerType != null)
                     return Activator.CreateInstance(drawerType, target, targetType, shown, showProps, showPrivateFields, showObsolete, showMethods) as InspectorDrawer;
             } catch(Exception ex) {
@@ -93,14 +101,14 @@ namespace UInspectorPlus {
 
         public InspectorDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
             this.target = target;
-            BindingFlags flag = BindingFlags.Static | BindingFlags.Public;
-            if(!Helper.IsInvalid(target))
+            BindingFlags flag = BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy;
+            if(!target.IsInvalid())
                 flag |= BindingFlags.Instance;
             if(allowPrivate = showPrivateFields)
                 flag |= BindingFlags.NonPublic;
             this.targetType = targetType;
             var fields = targetType.GetFields(flag);
-            var props = !showProps ? null : targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray();
+            var props = showProps ? targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray() : null;
             foreach(var field in fields)
                 try {
                     if(!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
@@ -112,8 +120,7 @@ namespace UInspectorPlus {
                     Debug.LogException(ex);
                 }
             if(showProps) {
-                HashSet<string> blacklistedType;
-                if(!Helper.blackListedTypes.TryGetValue(targetType, out blacklistedType)) {
+                if(!Helper.blackListedTypes.TryGetValue(targetType, out var blacklistedType)) {
                     Helper.blackListedTypes.Add(targetType, blacklistedType = new HashSet<string>());
                     foreach(var kvp in Helper.blackListedTypes)
                         if(kvp.Key.IsAssignableFrom(targetType))
@@ -125,7 +132,7 @@ namespace UInspectorPlus {
                             continue;
                         if(!showObsolete && Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
                             continue;
-                        bool isInternalType = Helper.IsInternalType(prop.DeclaringType);
+                        bool isInternalType = prop.DeclaringType.IsInternalType();
                         drawer.Add(new MethodPropertyDrawer(prop, target, showPrivateFields, showObsolete, prop.CanRead && EditorApplication.isPlaying) {
                             AllowReferenceMode = false,
                             Updatable = isInternalType || Helper.GetState(prop, false),
@@ -139,7 +146,7 @@ namespace UInspectorPlus {
                 AddMethodMenu();
             foreach(var d in drawer)
                 d.OnRequireRedraw += RequireRedraw;
-            if(!Helper.IsInvalid(target))
+            if(!target.IsInvalid())
                 this.shown = Helper.GetState(target, shown);
         }
 
@@ -155,7 +162,7 @@ namespace UInspectorPlus {
         public void Draw(bool drawHeader = true, bool readOnly = false) {
             if(drawHeader) {
                 shown = EditorGUILayout.InspectorTitlebar(shown, target as UnityObject);
-                if(!Helper.IsInvalid(target))
+                if(!target.IsInvalid())
                     Helper.StoreState(target, shown);
                 if(!shown)
                     return;
@@ -200,7 +207,7 @@ namespace UInspectorPlus {
             if(allowMethods) {
                 GUILayout.BeginHorizontal();
                 GUILayout.FlexibleSpace();
-                if(GUILayout.Button(new GUIContent("+", "Add Method / Index Properties Watcher"), EditorStyles.miniButton, GUILayout.ExpandWidth(false)))
+                if(GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Plus", "Add Method / Index Properties Watcher"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
                     AddMethodMenu();
                 GUILayout.EndHorizontal();
             }
@@ -219,13 +226,12 @@ namespace UInspectorPlus {
         }
 
         public virtual void UpdateValues(bool updateProps) {
-            if(Helper.IsInvalid(target)) return;
+            if(target.IsInvalid()) return;
             foreach(var drawerItem in drawer) {
-                var propDrawer = drawerItem as MethodPropertyDrawer;
-                if(propDrawer == null)
+                if(!(drawerItem is MethodPropertyDrawer propDrawer))
                     continue;
                 var isPropInfo = propDrawer.Info is PropertyInfo;
-                if(!Helper.IsInternalType(propDrawer.Info.DeclaringType) && (!updateProps || !propDrawer.Updatable) && isPropInfo)
+                if(!propDrawer.Info.DeclaringType.IsInternalType() && (!updateProps || !propDrawer.Updatable) && isPropInfo)
                     continue;
                 propDrawer.UpdateValue();
             }
@@ -239,7 +245,7 @@ namespace UInspectorPlus {
         }
 
         protected void RequireRedraw() {
-            if(!Helper.IsInvalid(target) && OnRequireRedraw != null)
+            if(!target.IsInvalid() && OnRequireRedraw != null)
                 OnRequireRedraw();
         }
     }

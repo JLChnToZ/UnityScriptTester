@@ -6,7 +6,7 @@ using System.Linq;
 using System.Reflection;
 using UnityObject = UnityEngine.Object;
 
-namespace UInspectorPlus {
+namespace JLChnToZ.EditorExtensions.UInspectorPlus {
     public class MethodPropertyDrawer: IReflectorDrawer, IDisposable {
         public static HashSet<MethodPropertyDrawer> drawerRequestingReferences = new HashSet<MethodPropertyDrawer>();
         public readonly string name;
@@ -57,7 +57,7 @@ namespace UInspectorPlus {
             set {
                 memberInfo = value;
                 if(memberInfo != null)
-                    isInfoReadonly = Helper.IsReadOnly(memberInfo);
+                    isInfoReadonly = memberInfo.IsReadOnly();
             }
         }
 
@@ -177,10 +177,10 @@ namespace UInspectorPlus {
         public MethodPropertyDrawer(FieldInfo field, object target, bool allowPrivate, bool allowObsolete)
             : this(allowPrivate, allowObsolete) {
             memberInfo = field;
-            isInfoReadonly = Helper.IsReadOnly(field);
+            isInfoReadonly = field.IsReadOnly();
             requiredType = field.FieldType;
-            name = Helper.GetMemberName(field, true);
-            nameContent = new GUIContent(name, Helper.GetMemberName(field));
+            name = field.GetMemberName(true);
+            nameContent = new GUIContent(name, field.GetMemberName());
             rawValue = field.GetValue(target);
             this.target = target;
             isStatic = field.IsStatic;
@@ -191,16 +191,16 @@ namespace UInspectorPlus {
         public MethodPropertyDrawer(PropertyInfo property, object target, bool allowPrivate, bool allowObsolete, bool initValue, params object[] indexParams)
             : this(allowPrivate, allowObsolete) {
             memberInfo = property;
-            isInfoReadonly = Helper.IsReadOnly(property);
+            isInfoReadonly = property.IsReadOnly();
             requiredType = property.PropertyType;
             if(indexParams != null && indexParams.Length > 0) {
                 this.indexParams = indexParams;
                 var paramList = Helper.JoinStringList(null, indexParams.Select(new Func<object, string>(Convert.ToString)), ", ").ToString();
-                name = $"{Helper.GetMemberName(property, true, false)}[{paramList}]";
-                nameContent = new GUIContent(name, $"{Helper.GetMemberName(property, false, false)}[{paramList}]");
+                name = $"{property.GetMemberName(true, false)}[{paramList}]";
+                nameContent = new GUIContent(name, $"{property.GetMemberName(false, false)}[{paramList}]");
             } else {
-                name = Helper.GetMemberName(property, true);
-                nameContent = new GUIContent(name, Helper.GetMemberName(property));
+                name = property.GetMemberName(true);
+                nameContent = new GUIContent(name, property.GetMemberName());
             }
             if(initValue) rawValue = property.GetValue(target, indexParams);
             this.target = target;
@@ -268,7 +268,7 @@ namespace UInspectorPlus {
         public void Draw() => Draw(false);
 
         public void Draw(bool readOnly, Rect? rect = null) {
-            if(Helper.IsInvalid(target) && Helper.IsInstanceMember(memberInfo))
+            if(target.IsInvalid() && memberInfo.IsInstanceMember())
                 return;
             readOnly |= isInfoReadonly;
             var referenceModeBtn = (!allowReferenceMode && (
@@ -303,10 +303,10 @@ namespace UInspectorPlus {
             }
             if(!readOnly && referenceModeBtn) {
                 if(rect.HasValue) {
-                    if(GUI.Button(Helper.ScaleRect(rect.Value, 1, 0.5F, 0, 0, -EditorGUIUtility.singleLineHeight, -7.5F, 15, 15), GUIContent.none, Helper.GetGUIStyle("MiniPullDown")))
+                    if(GUI.Button(Helper.ScaleRect(rect.Value, 1, 0.5F, 0, 0, -EditorGUIUtility.singleLineHeight, -7.5F, 15, 15), EditorGUIUtility.IconContent("_Menu"), EditorStyles.miniLabel))
                         ShowMenu(rect.Value);
                 } else {
-                    if(GUILayout.Button(GUIContent.none, Helper.GetGUIStyle("MiniPullDown"), GUILayout.Width(EditorGUIUtility.singleLineHeight)))
+                    if(GUILayout.Button(EditorGUIUtility.IconContent("_Menu"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
                         ShowMenu(menuButtonRect);
                     if(Event.current.type == EventType.Repaint)
                         menuButtonRect = GUILayoutUtility.GetLastRect();
@@ -318,8 +318,18 @@ namespace UInspectorPlus {
                 DrawCtorField();
             if(!rect.HasValue)
                 EditorGUI.indentLevel++;
-            if(getException != null)
-                EditorGUILayout.HelpBox(getException.Message, MessageType.Error);
+            if(getException != null) {
+                var exceptions = new HashSet<Exception>();
+                var sb = new System.Text.StringBuilder();
+                var exception = getException;
+                do {
+                    if (!exceptions.Add(exception)) break;
+                    if (sb.Length > 0) sb.AppendLine();
+                    sb.Append('>', exceptions.Count - 1);
+                    sb.Append($"{exception.GetType().Name}: {exception.Message}");
+                } while ((exception = exception.InnerException) != null);
+                EditorGUILayout.HelpBox(sb.ToString(), MessageType.Error);
+            }
         }
 
         public bool UpdateIfChanged() {
@@ -333,7 +343,7 @@ namespace UInspectorPlus {
         }
 
         public bool UpdateValue() {
-            if(Helper.FetchValue(memberInfo, target, out var value, indexParams)) {
+            if(memberInfo.FetchValue(target, out var value, indexParams)) {
                 rawValue = value;
                 GetException = null;
                 return true;
@@ -356,9 +366,9 @@ namespace UInspectorPlus {
         }
 
         private void AddField(UnityObject target) {
-            if(Helper.IsInvalid(target))
+            if(target.IsInvalid())
                 return;
-            BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+            BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy;
             if(privateFields)
                 flag |= BindingFlags.NonPublic;
             fields.AddRange(
@@ -386,11 +396,11 @@ namespace UInspectorPlus {
             if(gameObject != null)
                 foreach(var c in gameObject.GetComponents(typeof(Component)))
                     AddField(c);
-            fieldNames = fields.Select(m => $"{m.target.GetType().Name} ({m.target.GetInstanceID()})/{Helper.GetMemberName(m.property ?? m.field as MemberInfo)}").ToArray();
+            fieldNames = fields.Select(m => $"{m.target.GetType().Name} ({m.target.GetInstanceID()})/{(m.property ?? m.field as MemberInfo).GetMemberName()}").ToArray();
             selectedFieldIndex = -1;
         }
 
-        private object GetReferencedValue() => Helper.FetchValue(selectedField ?? selectedProperty as MemberInfo, component, out var val) ? val : null;
+        private object GetReferencedValue() => (selectedField ?? selectedProperty as MemberInfo).FetchValue(component, out var val) ? val : null;
 
         private void DrawCtorField() {
             if(ctorDrawer == null) {
@@ -578,15 +588,15 @@ namespace UInspectorPlus {
                         break;
                     case PropertyType.Gradient:
                         if(rect.HasValue)
-                            value = Helper.GradientField(rect.Value, nameContent, Helper.GetOrDefault<Gradient>(value));
+                            value = Helper.GradientField(rect.Value, nameContent, Helper.GetOrConstruct<Gradient>(value));
                         else
-                            value = Helper.GradientField(nameContent, Helper.GetOrDefault<Gradient>(value));
+                            value = Helper.GradientField(nameContent, Helper.GetOrConstruct<Gradient>(value));
                         break;
                     case PropertyType.Curve:
                         if(rect.HasValue)
-                            value = EditorGUI.CurveField(rect.Value, nameContent, value as AnimationCurve ?? new AnimationCurve());
+                            value = EditorGUI.CurveField(rect.Value, nameContent, Helper.GetOrConstruct<AnimationCurve>(value));
                         else
-                            value = EditorGUILayout.CurveField(nameContent, value as AnimationCurve ?? new AnimationCurve());
+                            value = EditorGUILayout.CurveField(nameContent, Helper.GetOrConstruct<AnimationCurve>(value));
                         break;
                     case PropertyType.Object:
                         if(rect.HasValue)
@@ -626,13 +636,13 @@ namespace UInspectorPlus {
         }
 
         private void DrawUnknownField(bool readOnly, object target, Rect? position = null) {
-            if(Helper.IsInvalid(target))
+            if(target.IsInvalid())
                 return;
             bool clicked;
             if(!position.HasValue)
-                clicked = GUILayout.Button("…", EditorStyles.miniButton, GUILayout.ExpandWidth(false));
+                clicked = GUILayout.Button(EditorGUIUtility.IconContent("MoreOptions"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
             else
-                clicked = GUI.Button(position.Value, "…", EditorStyles.miniButton);
+                clicked = GUI.Button(position.Value, EditorGUIUtility.IconContent("MoreOptions"), EditorStyles.miniLabel);
             if(clicked)
                 InspectorChildWindow.Open(target, true, privateFields, obsolete, true, false, this);
         }

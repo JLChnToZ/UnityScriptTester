@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEditor;
 using System.Threading;
 
-namespace UInspectorPlus {
+namespace JLChnToZ.EditorExtensions.UInspectorPlus {
     internal class TypeMatcher: IDisposable {
         public Thread bgWorker;
         public event Action OnRequestRedraw;
@@ -17,7 +17,7 @@ namespace UInspectorPlus {
         private Type[] searchTypeResult = null;
 
         public string SearchText {
-            get { return searchText; }
+            get => searchText;
             set {
                 if(searchText == value) return;
                 searchText = value;
@@ -40,15 +40,14 @@ namespace UInspectorPlus {
                 EditorStyles.boldLabel
             );
             GUILayout.Space(8);
-            int i = 0;
-            foreach(Type type in searchTypeResult) {
-                if(i++ >= 500) break;
+            for(int i = 0, l = Math.Min(searchTypeResult.Length, 500); i < l; i++) {
+                Type type = searchTypeResult[i];
                 temp.text = type.FullName;
                 temp.tooltip = type.AssemblyQualifiedName;
                 if(GUILayout.Button(temp, EditorStyles.foldout))
                     InspectorChildWindow.OpenStatic(type, true, true, true, true, false, null);
             }
-            if(searchTypeResult.Length != i)
+            if(searchTypeResult.Length > 500)
                 EditorGUILayout.HelpBox(
                     "Too many results, please try more specific search phase.",
                     MessageType.Warning
@@ -62,7 +61,7 @@ namespace UInspectorPlus {
                 currentDomain = AppDomain.CurrentDomain;
                 searchedTypes.UnionWith(
                     from assembly in currentDomain.GetAssemblies()
-                    from type in Helper.LooseGetTypes(assembly)
+                    from type in assembly.LooseGetTypes()
                     select type
                 );
                 currentDomain.AssemblyLoad += OnAssemblyLoad;
@@ -73,7 +72,7 @@ namespace UInspectorPlus {
                 pendingAssemblies.Clear();
                 searchedTypes.UnionWith(
                     from assembly in buffer
-                    from type in Helper.LooseGetTypes(assembly)
+                    from type in assembly.LooseGetTypes()
                     select type
                 );
             }
@@ -87,9 +86,7 @@ namespace UInspectorPlus {
             currentDomain = null;
         }
 
-        ~TypeMatcher() {
-            Dispose();
-        }
+        ~TypeMatcher() => Dispose();
 
         private void DoSearch() {
             try {

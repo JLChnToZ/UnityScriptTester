@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityObject = UnityEngine.Object;
 
-namespace UInspectorPlus {
+namespace JLChnToZ.EditorExtensions.UInspectorPlus {
     internal class InspectorPlus: EditorWindow, IHasCustomMenu {
         private const string description = "CAUTION: USE THIS PLUGIN AT YOUR OWN RISK!\n" +
             "Unless you know exactly what you are doing, do not use this plugin " +
@@ -191,13 +191,13 @@ namespace UInspectorPlus {
             var pendingRemoveDrawers = new List<InspectorDrawer[]>();
             var pendingAddDrawers = new List<InspectorDrawer[]>();
             foreach(var drawer in drawers)
-                if(drawer.Length <= 0 || Helper.IsInvalid(drawer[0].target) || !instanceIds.Contains(Helper.ObjIdOrHashCode(drawer[0].target))) {
+                if(drawer.Length <= 0 || drawer[0].target.IsInvalid() || !instanceIds.Contains(drawer[0].target.ObjIdOrHashCode())) {
                     pendingRemoveDrawers.Add(drawer);
                     foreach(var d in drawer) d.Dispose();
                 }
             drawers.RemoveAll(pendingRemoveDrawers.Contains);
             foreach(var instanceID in instanceIds)
-                if(drawers.FindIndex(drawer => Helper.ObjIdOrHashCode(drawer[0].target) == instanceID) < 0)
+                if(drawers.FindIndex(drawer => drawer[0].target.ObjIdOrHashCode() == instanceID) < 0)
                     pendingAddDrawers.Add(CreateDrawers(instanceID));
             drawers.AddRange(pendingAddDrawers);
             if(!callFromUpdate)
@@ -206,7 +206,7 @@ namespace UInspectorPlus {
 
         private InspectorDrawer[] CreateDrawers(int instanceID) {
             var target = EditorUtility.InstanceIDToObject(instanceID);
-            if(Helper.IsInvalid(target))
+            if(target.IsInvalid())
                 return new InspectorDrawer[0];
             var ret = new List<InspectorDrawer>();
             try {
@@ -214,8 +214,7 @@ namespace UInspectorPlus {
             } catch(Exception ex) {
                 Debug.LogException(ex);
             }
-            var gameObject = target as GameObject;
-            if(gameObject != null)
+            if(target is GameObject gameObject)
                 foreach(var component in gameObject.GetComponents(typeof(Component))) {
                     try {
                         ret.Add(CreateDrawer(component, false));
@@ -223,8 +222,7 @@ namespace UInspectorPlus {
                         Debug.LogException(ex);
                     }
                 }
-            var animatorState = target as AnimatorState;
-            if(animatorState != null)
+            if(target is AnimatorState animatorState)
                 foreach(var animBeahvior in animatorState.behaviours) {
                     try {
                         ret.Add(CreateDrawer(animBeahvior, false));
@@ -251,13 +249,13 @@ namespace UInspectorPlus {
         private void UpdateValues(bool updateProps) {
             for(int i = 0; i < drawers.Count; i++) {
                 var drawerGroup = drawers[i];
-                if(drawerGroup.Length == 0 || Helper.IsInvalid(drawerGroup[0].target)) {
+                if(drawerGroup.Length == 0 || drawerGroup[0].target.IsInvalid()) {
                     CheckSelection(true);
                     break;
                 }
-                int instanceID = Helper.ObjIdOrHashCode(drawerGroup[0].target);
+                int instanceID = drawerGroup[0].target.ObjIdOrHashCode();
                 for(int j = 0; j < drawerGroup.Length; j++) {
-                    if(Helper.IsInvalid(drawerGroup[j].target)) {
+                    if(drawerGroup[j].target.IsInvalid()) {
                         drawers[i] = CreateDrawers(instanceID);
                         break;
                     }
@@ -273,7 +271,7 @@ namespace UInspectorPlus {
             if(instanceIds == null || instanceIds.Length == 0)
                 return;
             bool deleteAll = false, showError = true;
-            HashSet<int> remainObjects = new HashSet<int>(instanceIds);
+            var remainObjects = new HashSet<int>(instanceIds);
             foreach(int id in instanceIds) {
                 try {
                     UnityObject obj = EditorUtility.InstanceIDToObject(id);

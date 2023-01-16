@@ -5,51 +5,57 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace UInspectorPlus {
+namespace JLChnToZ.EditorExtensions.UInspectorPlus {
     [CustomInspectorDrawer(typeof(IList), -2)]
     internal class ListInspectorDrawer: InspectorDrawer {
         private List<MethodPropertyDrawer> arrayContentDrawer;
+        public new IList target => base.target as IList;
         private ReorderableList arrayHandler;
         private bool showListEdit;
         private readonly Type elementType;
+        const float listItemPadding = 2;
 
         public ListInspectorDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) :
             base(target, targetType, shown, showProps, showPrivateFields, showObsolete, showMethods) {
-            elementType = Helper.GetGenericListType(targetType);
+            elementType = targetType.GetGenericListType();
         }
 
         protected override void Draw(bool readOnly) {
-            if(showListEdit = EditorGUILayout.Foldout(showListEdit, string.Format("Edit List [{0} Items]", (target as IList).Count))) {
+            if(showListEdit = EditorGUILayout.Foldout(showListEdit, $"Edit List [{target.Count} Items]")) {
                 if(arrayHandler == null) {
                     if(arrayContentDrawer == null) {
                         arrayContentDrawer = new List<MethodPropertyDrawer>();
-                        for(int i = 0; i < (target as IList).Count; i++)
+                        for(int i = 0; i < target.Count; i++)
                             ListAddItem();
                     }
-                    arrayHandler = new ReorderableList(target as IList, elementType) {
+                    arrayHandler = new ReorderableList(target, elementType) {
                         headerHeight = EditorGUIUtility.singleLineHeight,
-                        elementHeight = EditorGUIUtility.singleLineHeight + 2,
+                        elementHeight = EditorGUIUtility.singleLineHeight + listItemPadding,
                         drawElementCallback = (r, i, c, d) => {
-                            arrayContentDrawer[i].Value = (target as IList)[i];
-                            arrayContentDrawer[i].Draw(false, Helper.ScaleRect(r, offsetHeight: -2));
+                            arrayContentDrawer[i].Value = target[i];
+                            arrayContentDrawer[i].Draw(target.IsReadOnly, Helper.ScaleRect(r, offsetHeight: -listItemPadding));
                             if(arrayContentDrawer[i].Changed)
-                                (target as IList)[i] = arrayContentDrawer[i].Value;
+                                target[i] = arrayContentDrawer[i].Value;
                         },
                         drawHeaderCallback = r => GUI.Label(r, target.ToString(), EditorStyles.miniBoldLabel),
-                        onCanAddCallback = l => !Helper.IsInvalid(target) && !(target as IList).IsFixedSize,
+                        onCanAddCallback = l => !target.IsInvalid() && !target.IsFixedSize,
+                        onCanRemoveCallback = l => !target.IsInvalid() && !target.IsFixedSize && l.index >= 0,
                         onAddCallback = l => {
                             ReorderableList.defaultBehaviours.DoAddButton(l);
                             ListAddItem();
                         },
                         onRemoveCallback = l => {
                             ReorderableList.defaultBehaviours.DoRemoveButton(l);
-                            arrayContentDrawer[0].Dispose();
-                            arrayContentDrawer.RemoveAt(0);
+                            int lastItem = arrayContentDrawer.Count - 1;
+                            arrayContentDrawer[lastItem].Dispose();
+                            arrayContentDrawer.RemoveAt(lastItem);
                         }
                     };
                     arrayHandler.onCanRemoveCallback = arrayHandler.onCanAddCallback.Invoke;
                 }
+                EditorGUI.indentLevel++;
                 arrayHandler.DoLayoutList();
+                EditorGUI.indentLevel++;
             }
             base.Draw(readOnly);
         }

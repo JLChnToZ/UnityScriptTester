@@ -8,7 +8,7 @@ using System.Reflection;
 using System.Text;
 using UnityObject = UnityEngine.Object;
 
-namespace UInspectorPlus {
+namespace JLChnToZ.EditorExtensions.UInspectorPlus {
     internal enum PropertyType {
         Unknown,
         Bool,
@@ -72,68 +72,64 @@ namespace UInspectorPlus {
 
         // Delegate hacks to access the internal methods
         private delegate Gradient DoGradientField(GUIContent guiContent, Rect rect, Gradient gradient);
-        private static readonly DoGradientField doGradientField = GetDelegate<EditorGUI, DoGradientField>("GradientField");
+        private static readonly DoGradientField doGradientField = GetDelegate<DoGradientField>(typeof(EditorGUI), "GradientField");
         private delegate Gradient DoLayoutGradientField(GUIContent guiContent, Gradient gradient, params GUILayoutOption[] options);
-        private static readonly DoLayoutGradientField doLayoutGradiantField = GetDelegate<EditorGUILayout, DoLayoutGradientField>("GradientField");
+        private static readonly DoLayoutGradientField doLayoutGradiantField = GetDelegate<DoLayoutGradientField>(typeof(EditorGUILayout), "GradientField");
 
 
         private delegate string DoToolbarSearchField(string text, params GUILayoutOption[] options);
-        private static readonly DoToolbarSearchField doToolbarSearchField = GetDelegate<EditorGUILayout, DoToolbarSearchField>("ToolbarSearchField");
+        private static readonly DoToolbarSearchField doToolbarSearchField = GetDelegate<DoToolbarSearchField>(typeof(EditorGUILayout), "ToolbarSearchField");
 
         private delegate string DoToolbarDropDownSearchField(string text, string[] searchModes, ref int searchMode, params GUILayoutOption[] options);
-        private static readonly DoToolbarDropDownSearchField doToolbarDropDownSearchField = GetDelegate<EditorGUILayout, DoToolbarDropDownSearchField>("ToolbarSearchField");
+        private static readonly DoToolbarDropDownSearchField doToolbarDropDownSearchField = GetDelegate<DoToolbarDropDownSearchField>(typeof(EditorGUILayout), "ToolbarSearchField");
 
         private static readonly Hashtable storedState = new Hashtable();
 
         static Helper() {
-            AddPropertyTypeMap("System.String", PropertyType.String);
-            AddPropertyTypeMap("System.Boolean", PropertyType.Bool);
-            AddPropertyTypeMap("System.Byte", PropertyType.Integer);
-            AddPropertyTypeMap("System.SByte", PropertyType.Integer);
-            AddPropertyTypeMap("System.UInt16", PropertyType.Integer);
-            AddPropertyTypeMap("System.Int16", PropertyType.Integer);
-            AddPropertyTypeMap("System.UInt32", PropertyType.Integer);
-            AddPropertyTypeMap("System.Int32", PropertyType.Integer);
-            AddPropertyTypeMap("System.UInt64", PropertyType.Long);
-            AddPropertyTypeMap("System.Int64", PropertyType.Long);
-            AddPropertyTypeMap("System.Single", PropertyType.Single);
-            AddPropertyTypeMap("System.Double", PropertyType.Double);
-            AddPropertyTypeMap("UnityEngine.Vector2, UnityEngine.dll", PropertyType.Vector2);
-            AddPropertyTypeMap("UnityEngine.Vector3, UnityEngine.dll", PropertyType.Vector3);
-            AddPropertyTypeMap("UnityEngine.Vector4, UnityEngine.dll", PropertyType.Vector4);
-            AddPropertyTypeMap("UnityEngine.Quaternion, UnityEngine.dll", PropertyType.Quaterion);
-            AddPropertyTypeMap("UnityEngine.Color, UnityEngine.dll", PropertyType.Color);
-            AddPropertyTypeMap("UnityEngine.Rect, UnityEngine.dll", PropertyType.Rect);
-            AddPropertyTypeMap("UnityEngine.Bounds, UnityEngine.dll", PropertyType.Bounds);
-            AddPropertyTypeMap("UnityEngine.Gradient, UnityEngine.dll", PropertyType.Gradient);
-            AddPropertyTypeMap("UnityEngine.AnimationCurve, UnityEngine.dll", PropertyType.Curve);
-            AddPropertyTypeMap("UnityEngine.Object, UnityEngine.dll", PropertyType.Object);
-            AddPropertyTypeMap("System.Collections.Generic.IList`1", PropertyType.Array);
+            AddPropertyTypeMap<string>(PropertyType.String);
+            AddPropertyTypeMap<bool>(PropertyType.Bool);
+            AddPropertyTypeMap<byte>(PropertyType.Integer);
+            AddPropertyTypeMap<sbyte>(PropertyType.Integer);
+            AddPropertyTypeMap<ushort>(PropertyType.Integer);
+            AddPropertyTypeMap<short>(PropertyType.Integer);
+            AddPropertyTypeMap<uint>(PropertyType.Long);
+            AddPropertyTypeMap<int>(PropertyType.Integer);
+            AddPropertyTypeMap<ulong>(PropertyType.Long);
+            AddPropertyTypeMap<long>(PropertyType.Long);
+            AddPropertyTypeMap<float>(PropertyType.Single);
+            AddPropertyTypeMap<double>(PropertyType.Double);
+            AddPropertyTypeMap<Vector2>(PropertyType.Vector2);
+            AddPropertyTypeMap<Vector3>(PropertyType.Vector3);
+            AddPropertyTypeMap<Vector4>(PropertyType.Vector4);
+            AddPropertyTypeMap<Quaternion>(PropertyType.Quaterion);
+            AddPropertyTypeMap<Color>(PropertyType.Color);
+            AddPropertyTypeMap<Rect>(PropertyType.Rect);
+            AddPropertyTypeMap<Bounds>(PropertyType.Bounds);
+            AddPropertyTypeMap<Gradient>(PropertyType.Gradient);
+            AddPropertyTypeMap<AnimationCurve>(PropertyType.Curve);
+            AddPropertyTypeMap<UnityObject>(PropertyType.Object);
+            AddPropertyTypeMap(typeof(IList<>), PropertyType.Array);
 
-            AddPropertyTypeMap("UnityEngine.Vector2Int, UnityEngine.dll", PropertyType.Vector2Int);
-            AddPropertyTypeMap("UnityEngine.Vector3Int, UnityEngine.dll", PropertyType.Vector3Int);
-            AddPropertyTypeMap("UnityEngine.RectInt, UnityEngine.dll", PropertyType.RectInt);
+            AddPropertyTypeMap<Vector2Int>(PropertyType.Vector2Int);
+            AddPropertyTypeMap<Vector3Int>(PropertyType.Vector3Int);
+            AddPropertyTypeMap<RectInt>(PropertyType.RectInt);
 
             // Danger properties! Do not use them or they will instanate junks
-            AddBlacklistedType("UnityEngine.MeshFilter, UnityEngine.dll", "mesh");
-            AddBlacklistedType("UnityEngine.Renderer, UnityEngine.dll", "material", "materials");
-            AddBlacklistedType("UnityEngine.Collider, UnityEngine.dll", "material");
-            AddBlacklistedType("UnityEngine.Collider2D, UnityEngine.dll", "material");
+            AddBlacklistedType<MeshFilter>(nameof(MeshFilter.mesh));
+            AddBlacklistedType<Renderer>(nameof(Renderer.material), nameof(Renderer.materials));
+            AddBlacklistedType<Collider>(nameof(Collider.material));
         }
 
-        private static void AddPropertyTypeMap(string typeName, PropertyType propType) {
-            Type type = Type.GetType(typeName, false, false);
-            if(type != null)
-                propertyTypeMapper.Add(type, propType);
+        private static void AddPropertyTypeMap<T>(PropertyType propType) => AddPropertyTypeMap(typeof(T), propType);
+
+        private static void AddPropertyTypeMap(Type type, PropertyType propType) {
+            if(type != null) propertyTypeMapper.Add(type, propType);
         }
 
-        private static void AddBlacklistedType(string typeName, params string[] props) {
-            Type type = Type.GetType(typeName, false, false);
-            if(type == null) return;
-            HashSet<string> list;
-            if(!blackListedTypes.TryGetValue(type, out list))
-                blackListedTypes.Add(type, list = new HashSet<string>());
-            list.UnionWith(props);
+        private static void AddBlacklistedType<T>(params string[] props) => AddBlacklistedType(typeof(T), props);
+
+        private static void AddBlacklistedType(Type type, params string[] props) {
+            if(type != null) blackListedTypes.GetOrConstruct(type).UnionWith(props);
         }
 
         internal static void StoreState(object key, object value) {
@@ -143,9 +139,8 @@ namespace UInspectorPlus {
                 storedState.Add(key, value);
         }
 
-        internal static T GetState<T>(object key, T defaultValue = default(T)) {
-            return storedState.ContainsKey(key) ? (T)storedState[key] : defaultValue;
-        }
+        internal static T GetState<T>(object key, T defaultValue = default) =>
+            storedState.ContainsKey(key) ? (T)storedState[key] : defaultValue;
 
         internal static void ReadOnlyLabelField(string label, string value) {
             if(value.Contains('\r') || value.Contains('\n')) {
@@ -157,23 +152,20 @@ namespace UInspectorPlus {
             }
         }
 
-        internal static Rect ScaleRect(Rect source,
+        internal static Rect ScaleRect(this Rect source,
             float xScale = 0, float yScale = 0, float widthScale = 1, float heightScale = 1,
-            float offsetX = 0, float offsetY = 0, float offsetWidth = 0, float offsetHeight = 0) {
-            return new Rect(
-                source.x + source.width * xScale + offsetX,
-                source.y + source.height * yScale + offsetY,
-                source.width * widthScale + offsetWidth,
-                source.height * heightScale + offsetHeight
-            );
-        }
+            float offsetX = 0, float offsetY = 0, float offsetWidth = 0, float offsetHeight = 0) => new Rect(
+            source.x + source.width * xScale + offsetX,
+            source.y + source.height * yScale + offsetY,
+            source.width * widthScale + offsetWidth,
+            source.height * heightScale + offsetHeight
+        );
 
-        internal static bool IsInstanceMember(MemberInfo member, bool defaultResult = false) {
+        internal static bool IsInstanceMember(this MemberInfo member, bool defaultResult = false) {
             var field = member as FieldInfo;
             if(field != null) return !field.IsStatic;
             var method = member as MethodBase;
-            var property = member as PropertyInfo;
-            if(method == null && property != null) {
+            if(method == null && member is PropertyInfo property) {
                 if(property.CanWrite)
                     method = property.GetSetMethod();
                 else if(property.CanRead)
@@ -183,13 +175,10 @@ namespace UInspectorPlus {
             return defaultResult;
         }
 
-        internal static string GetMemberName(MemberInfo member, bool simplifed = false, bool appendMemberName = true) {
+        internal static string GetMemberName(this MemberInfo member, bool simplifed = false, bool appendMemberName = true) {
             var ret = new StringBuilder();
             var props = new List<string>();
-            var field = member as FieldInfo;
-            var property = member as PropertyInfo;
-            var method = member as MethodInfo;
-            if(field != null) {
+            if(member is FieldInfo field) {
                 if(!field.IsPublic)
                     props.Add(simplifed ? "P" : "Private");
                 if(field.IsStatic)
@@ -198,12 +187,12 @@ namespace UInspectorPlus {
                     props.Add(simplifed ? "R" : "Read Only");
                 if(field.IsLiteral)
                     props.Add(simplifed ? "C" : "Constant");
-            } else if(method != null) {
+            } else if(member is MethodInfo method) {
                 if(!method.IsPublic)
                     props.Add(simplifed ? "P" : "Private");
                 if(method.IsStatic)
                     props.Add(simplifed ? "S" : "Static");
-            } else if(property != null) {
+            } else if(member is PropertyInfo property) {
                 if(property.CanRead && property.CanWrite)
                     props.Add(simplifed ? "RW" : "Read Write");
                 if(property.CanRead && (method = property.GetGetMethod()) != null) {
@@ -225,7 +214,7 @@ namespace UInspectorPlus {
             }
             if(props.Count > 0)
                 ret.Append("(");
-            JoinStringList(ret, props, simplifed ? "" : ", ");
+            ret.JoinStringList(props, simplifed ? "" : ", ");
             if(props.Count > 0)
                 ret.Append(") ");
             if(appendMemberName)
@@ -233,7 +222,7 @@ namespace UInspectorPlus {
             return ret.ToString();
         }
 
-        internal static StringBuilder JoinStringList(StringBuilder sb, IEnumerable<string> list, string separator) {
+        internal static StringBuilder JoinStringList(this StringBuilder sb, IEnumerable<string> list, string separator) {
             if(sb == null)
                 sb = new StringBuilder();
             bool nonFirst = false;
@@ -267,17 +256,13 @@ namespace UInspectorPlus {
         }
 
         internal static object EnumField(Rect position, GUIContent label, Type type, object value) {
-            GUIContent[] itemNames;
-            Array itemValues;
-            int val = EnumFieldPreProcess(type, value, out itemNames, out itemValues);
+            int val = EnumFieldPreProcess(type, value, out var itemNames, out var itemValues);
             int newVal = EditorGUI.Popup(position, label, val, itemNames);
             return EnumFieldPostProcess(itemValues, newVal);
         }
 
         internal static object EnumField(GUIContent label, Type type, object value, params GUILayoutOption[] options) {
-            GUIContent[] itemNames;
-            Array itemValues;
-            int val = EnumFieldPreProcess(type, value, out itemNames, out itemValues);
+            int val = EnumFieldPreProcess(type, value, out var itemNames, out var itemValues);
             int newVal = EditorGUILayout.Popup(label, val, itemNames, options);
             return EnumFieldPostProcess(itemValues, newVal);
         }
@@ -292,31 +277,22 @@ namespace UInspectorPlus {
             return 0;
         }
 
-        private static object EnumFieldPostProcess(Array itemValues, int val) {
-            return itemValues.GetValue(val);
-        }
+        private static object EnumFieldPostProcess(Array itemValues, int val) => itemValues.GetValue(val);
 
-
-        internal static object MaskedEnumField(Rect position, string label, Type type, object mask) {
-            return MaskedEnumField(position, new GUIContent(label), type, mask);
-        }
+        internal static object MaskedEnumField(Rect position, string label, Type type, object mask) =>
+            MaskedEnumField(position, new GUIContent(label), type, mask);
 
         internal static object MaskedEnumField(Rect position, GUIContent label, Type type, object mask) {
-            string[] itemNames;
-            Array itemValues;
-            int val = MaskedEnumFieldPreProcess(type, mask, out itemNames, out itemValues);
+            int val = MaskedEnumFieldPreProcess(type, mask, out var itemNames, out var itemValues);
             int newVal = EditorGUI.MaskField(position, label, val, itemNames);
             return MaskedEnumFieldPostProcess(type, itemValues, mask, val, newVal);
         }
 
-        internal static object MaskedEnumField(string label, Type type, object mask, params GUILayoutOption[] options) {
-            return MaskedEnumField(new GUIContent(label), type, mask, options);
-        }
+        internal static object MaskedEnumField(string label, Type type, object mask, params GUILayoutOption[] options) =>
+            MaskedEnumField(new GUIContent(label), type, mask, options);
 
         internal static object MaskedEnumField(GUIContent label, Type type, object mask, params GUILayoutOption[] options) {
-            string[] itemNames;
-            Array itemValues;
-            int val = MaskedEnumFieldPreProcess(type, mask, out itemNames, out itemValues);
+            int val = MaskedEnumFieldPreProcess(type, mask, out var itemNames, out var itemValues);
             int newVal = EditorGUILayout.MaskField(label, val, itemNames, options);
             return MaskedEnumFieldPostProcess(type, itemValues, mask, val, newVal);
         }
@@ -345,7 +321,7 @@ namespace UInspectorPlus {
                     itemValue = Convert.ToInt64(itemValues.GetValue(i));
                     if((newMaskVal & (1 << i)) != 0) {
                         if(itemValue == 0) {
-                            rawValue = 0;
+                            value = 0;
                             break;
                         }
                         value |= itemValue;
@@ -359,7 +335,7 @@ namespace UInspectorPlus {
             int length = value == null ? 0 : value.Length;
             if(length > 5000) {
                 EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField(label, new GUIContent("Text too long to display (" + length + " characters)"));
+                EditorGUILayout.LabelField(label, new GUIContent($"Text too long to display ({length} characters)"));
                 if(GUILayout.Button("Copy", GUILayout.ExpandWidth(false)))
                     EditorGUIUtility.systemCopyBuffer = value;
                 if(!readOnly && GUILayout.Button("Paste", GUILayout.ExpandWidth(false))) {
@@ -368,7 +344,7 @@ namespace UInspectorPlus {
                 }
                 EditorGUILayout.EndHorizontal();
             } else {
-                int lines = CountLines(value);
+                int lines = value.CountLines();
                 if(lines > 1) {
                     var _opts = options.ToList();
                     _opts.Add(GUILayout.Height(EditorGUIUtility.singleLineHeight * lines));
@@ -399,7 +375,7 @@ namespace UInspectorPlus {
             if(readOnly) {
                 EditorGUI.SelectableLabel(position, value);
             } else {
-                int lines = position.height <= EditorGUIUtility.singleLineHeight ? 1 : CountLines(value);
+                int lines = position.height <= EditorGUIUtility.singleLineHeight ? 1 : value.CountLines();
                 if(lines > 1)
                     EditorGUI.PrefixLabel(ScaleRect(position, heightScale: 0, offsetHeight: EditorGUIUtility.singleLineHeight), new GUIContent(label));
                 value = lines > 1 ?
@@ -431,21 +407,17 @@ namespace UInspectorPlus {
             return value;
         }
 
-        internal static Gradient GradientField(Rect position, GUIContent label, Gradient value) {
-            return doGradientField(label, position, value);
-        }
+        internal static Gradient GradientField(Rect position, GUIContent label, Gradient value) =>
+            doGradientField(label, position, value);
 
-        internal static Gradient GradientField(GUIContent label, Gradient value, params GUILayoutOption[] options) {
-            return doLayoutGradiantField(label, value, options);
-        }
+        internal static Gradient GradientField(GUIContent label, Gradient value, params GUILayoutOption[] options) =>
+            doLayoutGradiantField(label, value, options);
 
-        internal static string ToolbarSearchField(string text, params GUILayoutOption[] options) {
-            return doToolbarSearchField(text, options);
-        }
+        internal static string ToolbarSearchField(string text, params GUILayoutOption[] options) =>
+            doToolbarSearchField(text, options);
 
-        internal static string ToolbarSearchField(string text, string[] searchModes, ref int searchMode, params GUILayoutOption[] options) {
-            return doToolbarDropDownSearchField(text, searchModes, ref searchMode, options);
-        }
+        internal static string ToolbarSearchField(string text, string[] searchModes, ref int searchMode, params GUILayoutOption[] options) =>
+            doToolbarDropDownSearchField(text, searchModes, ref searchMode, options);
 
         private static void ClickObject(UnityObject obj) {
             var newClickTime = EditorApplication.timeSinceStartup;
@@ -455,7 +427,7 @@ namespace UInspectorPlus {
             EditorGUIUtility.PingObject(obj);
         }
 
-        private static int CountLines(string str) {
+        private static int CountLines(this string str) {
             if(string.IsNullOrEmpty(str))
                 return 1;
             int cursor = 0, count = 0, length = str.Length;
@@ -497,7 +469,7 @@ namespace UInspectorPlus {
             return true;
         }
 
-        internal static bool IsReadOnly(MemberInfo info) {
+        internal static bool IsReadOnly(this MemberInfo info) {
             var fieldInfo = info as FieldInfo;
             if(fieldInfo != null)
                 return fieldInfo.IsInitOnly || fieldInfo.IsLiteral;
@@ -507,7 +479,7 @@ namespace UInspectorPlus {
             return false;
         }
 
-        internal static bool FetchValue(MemberInfo info, object target, out object value, params object[] index) {
+        internal static bool FetchValue(this MemberInfo info, object target, out object value, params object[] index) {
             value = null;
             try {
                 var fieldInfo = info as FieldInfo;
@@ -525,7 +497,7 @@ namespace UInspectorPlus {
             return true;
         }
 
-        internal static int ObjIdOrHashCode(object obj) {
+        internal static int ObjIdOrHashCode(this object obj) {
             var unityObj = obj as UnityObject;
             if(unityObj != null)
                 return unityObj.GetInstanceID();
@@ -534,14 +506,14 @@ namespace UInspectorPlus {
             return 0;
         }
 
-        internal static bool IsInterface(Type type, Type interfaceType) {
+        internal static bool IsInterface(this Type type, Type interfaceType) {
             foreach(var iType in type.GetInterfaces())
                 if(iType == interfaceType || (iType.IsGenericType && iType.GetGenericTypeDefinition() == interfaceType))
                     return true;
             return false;
         }
 
-        internal static Type GetGenericListType(Type targetType) {
+        internal static Type GetGenericListType(this Type targetType) {
             if(targetType.IsArray)
                 return targetType.GetElementType();
             bool hasNonGeneric = false;
@@ -554,77 +526,42 @@ namespace UInspectorPlus {
             return hasNonGeneric ? typeof(object) : null;
         }
 
-        internal static GUIStyle GetGUIStyle(string styleName) {
-            return GUI.skin.FindStyle(styleName) ?? EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).FindStyle(styleName);
+        internal static GUIStyle GetGUIStyle(string styleName) => GUI.skin.FindStyle(styleName) ??
+            EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).FindStyle(styleName);
+
+        internal static T GetOrDefault<T>(object value, T defaultValue = default) {
+            if (value == null) return defaultValue;
+            try {
+                return (T)Convert.ChangeType(value, typeof(T));
+            } catch {}
+            try {
+                return (T)value;
+            } catch {}
+            return defaultValue;
         }
 
-        internal static T GetOrDefault<T>(object value, T defaultValue = default(T)) => value == null ? defaultValue : (T)value;
+        internal static T GetOrConstruct<T>(object value) where T : new() => value == null ? new T() : (T)value;
 
-        internal static TDelegate GetDelegate<TDelegate>(string fromTypeName, string methodName, object target = null) where TDelegate : class {
-            if(fromTypeName == null)
-                throw new ArgumentNullException("fromTypeName");
-            Type fromType = Type.GetType(fromTypeName, false);
-            if(fromType == null) return null;
-            return GetDelegate<TDelegate>(fromType, methodName, target);
+        internal static TValue GetOrConstruct<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key) where TValue : new() {
+            if (!dict.TryGetValue(key, out var value)) {
+                value = new TValue();
+                if (!dict.IsReadOnly) dict.Add(key, value);
+            }
+            return value;
         }
 
-        internal static TDelegate GetDelegate<TDelegate>(Type fromType, string methodName, object target = null) where TDelegate : class {
-            if(fromType == null)
-                throw new ArgumentNullException("fromType");
-            if(methodName == null)
-                throw new ArgumentNullException("methodName");
-            Type delegateType = typeof(TDelegate);
-            MethodInfo method = FindMethod(fromType, methodName, delegateType);
-            if(method == null)
-                return null;
-            if(method.IsStatic)
-                return Delegate.CreateDelegate(delegateType, method, false) as TDelegate;
-            if(target == null && fromType.IsValueType)
-                target = Activator.CreateInstance(fromType);
-            return Delegate.CreateDelegate(delegateType, target, method, false) as TDelegate;
-        }
-
-        internal static TDelegate GetDelegate<TFrom, TDelegate>(string methodName, TFrom target = default(TFrom)) where TDelegate : class {
-            if(methodName == null)
-                throw new ArgumentNullException("methodName");
-            Type delegateType = typeof(TDelegate);
-            MethodInfo method = FindMethod(typeof(TFrom), methodName, delegateType);
-            if(method == null)
-                return null;
-            if(method.IsStatic)
-                return Delegate.CreateDelegate(delegateType, method, false) as TDelegate;
-            return Delegate.CreateDelegate(delegateType, target, method, false) as TDelegate;
-        }
-
-        private static MethodInfo FindMethod(Type fromType, string methodName, Type delegateType) {
-            const string NotADelegateMsg = "{0} is not a delegate.";
-            const string MissingInvokeMsg =
-                "Cannot determine what parameters does {0} have, " +
-                "as no Invoke(...) signature found. " +
-                "Perhaps this is not a valid delegate.";
-            if(!delegateType.IsSubclassOf(typeof(Delegate)))
-                throw new ArgumentException(string.Format(NotADelegateMsg, delegateType.Name));
-            MethodInfo invokeMethod = delegateType.GetMethod("Invoke");
-            if(invokeMethod == null)
-                throw new ArgumentException(string.Format(MissingInvokeMsg, delegateType.Name));
-            return fromType.GetMethod(
-                methodName,
-                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance,
-                null, CallingConventions.Any,
-                Array.ConvertAll(invokeMethod.GetParameters(), p => p.ParameterType),
-                null
-            );
-        }
+        internal static TDelegate GetDelegate<TDelegate>(Type fromType, string methodName) where TDelegate : Delegate =>
+            Delegate.CreateDelegate(typeof(TDelegate), fromType, methodName, false, false) as TDelegate;
 
         // Special checker to deal with "null" UnityEngine.Object (Internally null, but still exists in Mono heap)
-        internal static bool IsInvalid(object obj) => obj is UnityObject uObj ? uObj == null : obj == null;
+        internal static bool IsInvalid(this object obj) => obj is UnityObject uObj ? !uObj : obj == null;
 
-        internal static bool IsInternalType(Type type) => !(
+        internal static bool IsInternalType(this Type type) => !(
             type.IsSubclassOf(typeof(MonoBehaviour)) ||
             type.IsSubclassOf(typeof(StateMachineBehaviour))
         ) || Attribute.IsDefined(type, typeof(ExecuteInEditMode));
 
-        public static IEnumerable<Type> LooseGetTypes(Assembly assembly) {
+        public static IEnumerable<Type> LooseGetTypes(this Assembly assembly) {
             for(int retries = 0; retries < 2; retries++)
                 try {
                     return assembly.GetTypes();
@@ -639,10 +576,8 @@ namespace UInspectorPlus {
             return null; // Should not reach here
         }
 
-        [MenuItem("Window/Inspector+")]
-        public static void ShowInspectorPlus() {
-            EditorWindow.GetWindow(typeof(InspectorPlus));
-        }
+        [MenuItem("Window/JLChnToZ/Inspector+")]
+        public static void ShowInspectorPlus() => EditorWindow.GetWindow(typeof(InspectorPlus));
 
         public static void PrintExceptionsWithInner(Exception ex) {
             do {
