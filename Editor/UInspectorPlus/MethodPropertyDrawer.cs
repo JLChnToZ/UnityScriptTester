@@ -431,7 +431,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 EditorGUILayout.PrefixLabel(new GUIContent("Requesting References..."));
                 buttonClicked = GUILayout.Button("Cancel", EditorStyles.miniButton);
             }
-            if(buttonClicked) {
+            if(buttonClicked || !drawerRequestingReferences.Contains(this)) {
                 grabValueMode = 0;
                 drawerRequestingReferences.Remove(this);
                 RequireRedraw();

@@ -236,21 +236,21 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         internal static Quaternion QuaternionField(string label, Quaternion value, params GUILayoutOption[] options) {
-            var cValue = value.eulerAngles;
+            var cValue = new Vector4(value.x, value.y, value.z, value.w);
             var changed = GUI.changed;
             GUI.changed = false;
-            cValue = EditorGUILayout.Vector3Field(label, cValue, options);
-            if(GUI.changed) return Quaternion.Euler(cValue);
+            cValue = EditorGUILayout.Vector4Field(label, cValue, options);
+            if(GUI.changed) return new Quaternion(cValue.x, cValue.y, cValue.z, cValue.w);
             GUI.changed = changed;
             return value;
         }
 
         internal static Quaternion QuaternionField(Rect position, string label, Quaternion value) {
-            var cValue = value.eulerAngles;
+            var cValue = new Vector4(value.x, value.y, value.z, value.w);
             var changed = GUI.changed;
             GUI.changed = false;
-            cValue = EditorGUI.Vector3Field(position, label, cValue);
-            if(GUI.changed) return Quaternion.Euler(cValue);
+            cValue = EditorGUI.Vector4Field(position, label, cValue);
+            if(GUI.changed) return new Quaternion(cValue.x, cValue.y, cValue.z, cValue.w);
             GUI.changed = changed;
             return value;
         }
