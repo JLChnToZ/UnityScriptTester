@@ -215,7 +215,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             requiredType = parameter.ParameterType;
             name = parameter.Name;
             nameContent = new GUIContent(name, name);
-            if(parameter.IsOptional)
+            if(parameter.HasDefaultValue)
                 rawValue = parameter.DefaultValue;
             InitType();
         }
@@ -274,7 +274,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             var referenceModeBtn = (!allowReferenceMode && (
                     currentType == PropertyType.Unknown ||
                     currentType == PropertyType.Object ||
-                    currentType == PropertyType.Array)
+                    currentType == PropertyType.Array ||
+                    currentType == PropertyType.Quaterion)
                 ) ||
                 allowReferenceMode ||
                 castableTypes.Count > 1;
@@ -490,17 +491,18 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                             value = EditorGUILayout.Toggle(nameContent, (bool)(value ?? false));
                         break;
                     case PropertyType.Enum:
+                        if(value == null) value = Activator.CreateInstance(requiredType);
                         if(masked) {
                             if(rect.HasValue)
-                                value = Helper.MaskedEnumField(rect.Value, nameContent, requiredType, value);
+                                value = EditorGUI.EnumFlagsField(rect.Value, nameContent, (Enum)value);
                             else
-                                value = Helper.MaskedEnumField(nameContent, requiredType, value);
+                                value = EditorGUILayout.EnumFlagsField(nameContent, (Enum)value);
                             break;
                         }
                         if(rect.HasValue)
-                            value = Helper.EnumField(rect.Value, nameContent, requiredType, value);
+                            value = EditorGUI.EnumPopup(rect.Value, nameContent, (Enum)value);
                         else
-                            value = Helper.EnumField(nameContent, requiredType, value);
+                            value = EditorGUILayout.EnumPopup(nameContent, (Enum)value);
                         break;
                     case PropertyType.Long:
                         if(rect.HasValue)
@@ -557,6 +559,13 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                             value = EditorGUILayout.Vector4Field(name, Helper.GetOrDefault<Vector4>(value));
                         break;
                     case PropertyType.Quaterion:
+                        if (masked) {
+                            if(rect.HasValue)
+                                value = Helper.EulerField(rect.Value, name, Helper.GetOrDefault(value, Quaternion.identity));
+                            else
+                                value = Helper.EulerField(name, Helper.GetOrDefault(value, Quaternion.identity));
+                            break;
+                        }
                         if(rect.HasValue)
                             value = Helper.QuaternionField(rect.Value, name, Helper.GetOrDefault(value, Quaternion.identity));
                         else
@@ -660,11 +669,15 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 if(!allowReferenceMode)
                     menu.AddItem(new GUIContent("Mode/By Value"), grabValueMode == 0, GrabValueMode, 0);
                 menu.AddItem(new GUIContent("Mode/From Component"), grabValueMode == 1, GrabValueMode, 1);
-                menu.AddItem(new GUIContent("Mode/Construct"), grabValueMode == 2, GrabValueMode, 2);
-                menu.AddItem(new GUIContent("Mode/From Opened Inspectors"), grabValueMode == 3, GrabValueMode, 3);
+                if(currentType == PropertyType.Unknown) {
+                    menu.AddItem(new GUIContent("Mode/Construct"), grabValueMode == 2, GrabValueMode, 2);
+                    menu.AddItem(new GUIContent("Mode/From Opened Inspectors"), grabValueMode == 3, GrabValueMode, 3);
+                }
             }
             if(currentType == PropertyType.Enum)
                 menu.AddItem(new GUIContent("Multiple Selection"), masked, ChangeMultiSelect, !masked);
+            if(currentType == PropertyType.Quaterion)
+                menu.AddItem(new GUIContent("Euler Angles"), masked, ChangeMultiSelect, !masked);
             if(OptionalPrivateFields) {
                 if(referenceMode)
                     menu.AddItem(new GUIContent("Allow Private Members"), privateFields, ChangePrivateFields, !privateFields);

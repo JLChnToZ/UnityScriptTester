@@ -241,7 +241,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             GUI.changed = false;
             cValue = EditorGUILayout.Vector4Field(label, cValue, options);
             if(GUI.changed) return new Quaternion(cValue.x, cValue.y, cValue.z, cValue.w);
-            GUI.changed = changed;
+            if(changed) GUI.changed = true;
             return value;
         }
 
@@ -250,86 +250,31 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             var changed = GUI.changed;
             GUI.changed = false;
             cValue = EditorGUI.Vector4Field(position, label, cValue);
-            if(GUI.changed) return new Quaternion(cValue.x, cValue.y, cValue.z, cValue.w);
-            GUI.changed = changed;
+            if(GUI.changed) return new Quaternion(cValue.x, cValue.y, cValue.z, cValue.w).normalized;
+            if(changed) GUI.changed = true;
             return value;
         }
 
-        internal static object EnumField(Rect position, GUIContent label, Type type, object value) {
-            int val = EnumFieldPreProcess(type, value, out var itemNames, out var itemValues);
-            int newVal = EditorGUI.Popup(position, label, val, itemNames);
-            return EnumFieldPostProcess(itemValues, newVal);
+        internal static Quaternion EulerField(string label, Quaternion value, params GUILayoutOption[] options) {
+            var cValue = value.eulerAngles;
+            var changed = GUI.changed;
+            GUI.changed = false;
+            cValue = EditorGUILayout.Vector3Field(label, cValue, options);
+            if(GUI.changed) return Quaternion.Euler(cValue);
+            if(changed) GUI.changed = true;
+            return value;
         }
 
-        internal static object EnumField(GUIContent label, Type type, object value, params GUILayoutOption[] options) {
-            int val = EnumFieldPreProcess(type, value, out var itemNames, out var itemValues);
-            int newVal = EditorGUILayout.Popup(label, val, itemNames, options);
-            return EnumFieldPostProcess(itemValues, newVal);
+        internal static Quaternion EulerField(Rect position, string label, Quaternion value) {
+            var cValue = value.eulerAngles;
+            var changed = GUI.changed;
+            GUI.changed = false;
+            cValue = EditorGUI.Vector3Field(position, label, cValue);
+            if(GUI.changed) return Quaternion.Euler(cValue);
+            if(changed) GUI.changed = true;
+            return value;
         }
 
-        private static int EnumFieldPreProcess(Type type, object rawValue, out GUIContent[] itemNames, out Array itemValues) {
-            itemNames = Array.ConvertAll(Enum.GetNames(type), x => new GUIContent(x));
-            itemValues = Enum.GetValues(type);
-            long val = Convert.ToInt64(rawValue);
-            for(int i = 0; i < itemValues.Length; i++)
-                if(Convert.ToInt64(itemValues.GetValue(i)) == val)
-                    return i;
-            return 0;
-        }
-
-        private static object EnumFieldPostProcess(Array itemValues, int val) => itemValues.GetValue(val);
-
-        internal static object MaskedEnumField(Rect position, string label, Type type, object mask) =>
-            MaskedEnumField(position, new GUIContent(label), type, mask);
-
-        internal static object MaskedEnumField(Rect position, GUIContent label, Type type, object mask) {
-            int val = MaskedEnumFieldPreProcess(type, mask, out var itemNames, out var itemValues);
-            int newVal = EditorGUI.MaskField(position, label, val, itemNames);
-            return MaskedEnumFieldPostProcess(type, itemValues, mask, val, newVal);
-        }
-
-        internal static object MaskedEnumField(string label, Type type, object mask, params GUILayoutOption[] options) =>
-            MaskedEnumField(new GUIContent(label), type, mask, options);
-
-        internal static object MaskedEnumField(GUIContent label, Type type, object mask, params GUILayoutOption[] options) {
-            int val = MaskedEnumFieldPreProcess(type, mask, out var itemNames, out var itemValues);
-            int newVal = EditorGUILayout.MaskField(label, val, itemNames, options);
-            return MaskedEnumFieldPostProcess(type, itemValues, mask, val, newVal);
-        }
-
-        private static int MaskedEnumFieldPreProcess(Type type, object rawValue, out string[] itemNames, out Array itemValues) {
-            itemNames = Enum.GetNames(type);
-            itemValues = Enum.GetValues(type);
-            int maskVal = 0;
-            long value = Convert.ToInt64(rawValue), itemValue;
-            for(int i = 0; i < itemValues.Length; i++) {
-                itemValue = Convert.ToInt64(itemValues.GetValue(i));
-                if(itemValue != 0) {
-                    if((value & itemValue) != 0)
-                        maskVal |= 1 << i;
-                } else if(value == 0)
-                    maskVal |= 1 << i;
-            }
-            return maskVal;
-        }
-
-        private static object MaskedEnumFieldPostProcess(Type enumType, Array itemValues, object rawValue, int maskVal, int newMaskVal) {
-            int changes = maskVal ^ newMaskVal;
-            long value = Convert.ToInt64(rawValue), itemValue;
-            for(int i = 0; i < itemValues.Length; i++)
-                if((changes & (1 << i)) != 0) {
-                    itemValue = Convert.ToInt64(itemValues.GetValue(i));
-                    if((newMaskVal & (1 << i)) != 0) {
-                        if(itemValue == 0) {
-                            value = 0;
-                            break;
-                        }
-                        value |= itemValue;
-                    } else
-                        value &= ~itemValue;
-                }
-            return Enum.ToObject(enumType, value);
-        }
 
         internal static string StringField(GUIContent label, string value, bool readOnly, params GUILayoutOption[] options) {
             int length = value == null ? 0 : value.Length;
