@@ -19,6 +19,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private object rawValue;
         private bool referenceMode;
         private int grabValueMode;
+        private ArrayConstructorDrawer arrayConstructorDrawer;
 
         private UnityObject component;
         private readonly List<ComponentFields> fields;
@@ -34,6 +35,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private bool obsolete = true;
         private bool masked;
         private bool isInfoReadonly;
+        private bool hasGetValue;
         private readonly bool isStatic;
         private readonly bool isPrivate;
         public event Action OnRequireRedraw;
@@ -149,6 +151,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             }
             set {
                 rawValue = value;
+                hasGetValue = true;
                 Changed = false;
             }
         }
@@ -182,6 +185,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             name = field.GetMemberName(true);
             nameContent = new GUIContent(name, field.GetMemberName());
             rawValue = field.GetValue(target);
+            hasGetValue = true;
             this.target = target;
             isStatic = field.IsStatic;
             isPrivate = field.IsPrivate;
@@ -202,6 +206,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 name = property.GetMemberName(true);
                 nameContent = new GUIContent(name, property.GetMemberName());
             }
+            hasGetValue = initValue;
             if(initValue) rawValue = property.GetValue(target, indexParams);
             this.target = target;
             var getMethod = property.GetGetMethod();
@@ -215,6 +220,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             requiredType = parameter.ParameterType;
             name = parameter.Name;
             nameContent = new GUIContent(name, name);
+            hasGetValue = true;
             if(parameter.HasDefaultValue)
                 rawValue = parameter.DefaultValue;
             InitType();
@@ -225,6 +231,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             requiredType = type;
             this.name = name;
             nameContent = new GUIContent(name, name);
+            hasGetValue = true;
             rawValue = defaultValue;
             InitType();
         }
@@ -270,6 +277,22 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public void Draw(bool readOnly, Rect? rect = null) {
             if(target.IsInvalid() && memberInfo.IsInstanceMember())
                 return;
+            if(requiredType != null && requiredType.ContainsGenericParameters) {
+                Rect sRect = rect.HasValue ? rect.Value : EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight, GUI.skin.button);
+                sRect = EditorGUI.PrefixLabel(sRect, nameContent);
+                GUI.Label(sRect, "Unresolved Generic Type");
+                return;
+            }
+            if(!hasGetValue) {
+                const string labelText = "Fetch Value...";
+                Rect sRect = rect.HasValue ? rect.Value : EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight, GUI.skin.button);
+                sRect = EditorGUI.PrefixLabel(sRect, nameContent);
+                if(GUI.Button(sRect, labelText, GUI.skin.button)) {
+                    hasGetValue = true;
+                    rawValue = (memberInfo as PropertyInfo).GetValue(target);
+                }
+                return;
+            }
             readOnly |= isInfoReadonly;
             var referenceModeBtn = (!allowReferenceMode && (
                     currentType == PropertyType.Unknown ||
@@ -283,6 +306,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 Rect sRect = referenceModeBtn ? Helper.ScaleRect(rect.Value, offsetWidth: -EditorGUIUtility.singleLineHeight) : rect.Value;
                 if(referenceMode || grabValueMode == 1)
                     DrawReferencedField(sRect);
+                else if(grabValueMode == 4)
+                    DrawArrayCtorField(sRect);
                 else if(grabValueMode == 3)
                     DrawRequestReferenceField(sRect);
                 else
@@ -297,6 +322,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                     EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
                 if(referenceMode || grabValueMode == 1)
                     DrawReferencedField(null);
+                else if(grabValueMode == 4)
+                    DrawArrayCtorField(null);
                 else if(grabValueMode == 3)
                     DrawRequestReferenceField(null);
                 else
@@ -324,11 +351,11 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 var sb = new System.Text.StringBuilder();
                 var exception = getException;
                 do {
-                    if (!exceptions.Add(exception)) break;
-                    if (sb.Length > 0) sb.AppendLine();
+                    if(!exceptions.Add(exception)) break;
+                    if(sb.Length > 0) sb.AppendLine();
                     sb.Append('>', exceptions.Count - 1);
                     sb.Append($"{exception.GetType().Name}: {exception.Message}");
-                } while ((exception = exception.InnerException) != null);
+                } while((exception = exception.InnerException) != null);
                 EditorGUILayout.HelpBox(sb.ToString(), MessageType.Error);
             }
         }
@@ -344,6 +371,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         public bool UpdateValue() {
+            hasGetValue = true;
             if(memberInfo.FetchValue(target, out var value, indexParams)) {
                 rawValue = value;
                 GetException = null;
@@ -559,7 +587,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                             value = EditorGUILayout.Vector4Field(name, Helper.GetOrDefault<Vector4>(value));
                         break;
                     case PropertyType.Quaterion:
-                        if (masked) {
+                        if(masked) {
                             if(rect.HasValue)
                                 value = Helper.EulerField(rect.Value, name, Helper.GetOrDefault(value, Quaternion.identity));
                             else
@@ -619,8 +647,29 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                         else
                             value = Helper.StringField(nameContent, (string)value, readOnly);
                         break;
+                    case PropertyType.Type:
+                        EditorGUI.BeginDisabledGroup(readOnly);
+                        var rect2 = rect.HasValue ? rect.Value : EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight, EditorStyles.textField);
+                        rect2 = EditorGUI.PrefixLabel(rect2, nameContent);
+                        Rect buttonRect;
+                        if(rect.HasValue) {
+                            buttonRect = Helper.ScaleRect(rect2, 1, 0, 0, 1, -34, 0, 32);
+                            rect2 = Helper.ScaleRect(rect2, 0, 0, 1, 1, 0, 0, -36);
+                        } else
+                            buttonRect = Rect.zero;
+                        if(GUI.Button(rect2, value is Type t ? $"T: {t.FullName}" : "<Null>", EditorStyles.textField) && !readOnly) {
+                            var typeMatcherPopup = new TypeMatcherPopup(null);
+                            typeMatcherPopup.OnSelected += type => rawValue = type;
+                            PopupWindow.Show(rect2, typeMatcherPopup);
+                        }
+                        EditorGUI.EndDisabledGroup();
+                        if(rect.HasValue)
+                            DrawUnknownField(readOnly, value, buttonRect);
+                        else
+                            DrawUnknownField(readOnly, value);
+                        break;
                     default:
-                        var stringValue = value != null ? value.ToString() : "Null";
+                        var stringValue = value != null ? value.ToString() : "<Null>";
                         if(rect.HasValue) {
                             Helper.StringField(Helper.ScaleRect(rect.Value, 0, 0, 1, 1, 0, 0, -36), nameContent, stringValue, true);
                             DrawUnknownField(readOnly, value, Helper.ScaleRect(rect.Value, 1, 0, 0, 1, -34, 0, 32));
@@ -656,6 +705,26 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 InspectorChildWindow.Open(target, true, privateFields, obsolete, true, false, this);
         }
 
+        private void DrawArrayCtorField(Rect? position = null) {
+            if(!position.HasValue) EditorGUILayout.BeginVertical();
+            if(requiredType.IsGenericType) {
+                if(position.HasValue)
+                    EditorGUI.HelpBox(position.Value, "Type is not resolved.", MessageType.Error);
+                else
+                    EditorGUILayout.HelpBox("Type is not resolved.", MessageType.Error);
+                return;
+            }
+            if(arrayConstructorDrawer == null) arrayConstructorDrawer = new ArrayConstructorDrawer(requiredType.GetElementType());
+            arrayConstructorDrawer.Draw();
+            if(position.HasValue ? GUI.Button(position.Value, "Create Array") : GUILayout.Button("Create Array")) {
+                Value = arrayConstructorDrawer.ToArray();
+                arrayConstructorDrawer.Dispose();
+                arrayConstructorDrawer = null;
+                grabValueMode = 0;
+            }
+            if(!position.HasValue) EditorGUILayout.EndVertical();
+        }
+
         private void ShowMenu(Rect position) {
             var menu = new GenericMenu();
             if(castableTypes.Count > 1)
@@ -669,9 +738,14 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 if(!allowReferenceMode)
                     menu.AddItem(new GUIContent("Mode/By Value"), grabValueMode == 0, GrabValueMode, 0);
                 menu.AddItem(new GUIContent("Mode/From Component"), grabValueMode == 1, GrabValueMode, 1);
-                if(currentType == PropertyType.Unknown) {
-                    menu.AddItem(new GUIContent("Mode/Construct"), grabValueMode == 2, GrabValueMode, 2);
-                    menu.AddItem(new GUIContent("Mode/From Opened Inspectors"), grabValueMode == 3, GrabValueMode, 3);
+                switch(currentType) {
+                    case PropertyType.Array:
+                        menu.AddItem(new GUIContent("Mode/Construct"), grabValueMode == 4, GrabValueMode, 4);
+                        break;
+                    case PropertyType.Unknown:
+                        menu.AddItem(new GUIContent("Mode/Construct"), grabValueMode == 2, GrabValueMode, 2);
+                        menu.AddItem(new GUIContent("Mode/From Opened Inspectors"), grabValueMode == 3, GrabValueMode, 3);
+                        break;
                 }
             }
             if(currentType == PropertyType.Enum)

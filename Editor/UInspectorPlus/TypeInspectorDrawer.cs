@@ -9,7 +9,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         protected override void Draw(bool readOnly) {
-            if(GUILayout.Button(string.Format("Inspect Static Members of {0}...", target)))
+            if(target != null && GUILayout.Button(string.Format("Inspect Static Members of {0}...", target)))
                 InspectorChildWindow.OpenStatic(target as Type, true, allowPrivate, false, true, false, null);
             base.Draw(readOnly);
         }

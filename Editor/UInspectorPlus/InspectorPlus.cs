@@ -34,11 +34,14 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             Initialize();
             OnFocus();
             typeMatcher.OnRequestRedraw += Repaint;
+            typeMatcher.OnSelected += TypeSelected;
         }
 
         private void OnDisable() => typeMatcher.OnRequestRedraw -= Repaint;
 
         private void OnDestroy() => typeMatcher.Dispose();
+
+        private static void TypeSelected(Type type) => InspectorChildWindow.OpenStatic(type, true, true, true, true, false, null);
 
         private void Initialize() {
             if(initialized) return;
@@ -286,10 +289,10 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                             case 0: deleteThis = true; break;
                             case 1: deleteThis = false; break;
                             case 2: {
-                                deleteAll = true;
-                                deleteThis = true;
-                                break;
-                            }
+                                    deleteAll = true;
+                                    deleteThis = true;
+                                    break;
+                                }
                         }
                     if(deleteThis) {
                         DestroyImmediate(obj);

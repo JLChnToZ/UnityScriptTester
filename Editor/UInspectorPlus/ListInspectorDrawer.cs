@@ -21,7 +21,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         protected override void Draw(bool readOnly) {
-            if(showListEdit = EditorGUILayout.Foldout(showListEdit, $"Edit List [{target.Count} Items]")) {
+            if(target != null && (showListEdit = EditorGUILayout.Foldout(showListEdit, $"Edit List [{target.Count} Items]"))) {
                 if(arrayHandler == null) {
                     if(arrayContentDrawer == null) {
                         arrayContentDrawer = new List<MethodPropertyDrawer>();
@@ -65,5 +65,67 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             drawer.OnRequireRedraw += RequireRedraw;
             arrayContentDrawer.Add(drawer);
         }
+    }
+
+    internal class ArrayConstructorDrawer: IDisposable {
+        const float listItemPadding = 2;
+        private readonly Type elementType;
+        private readonly List<MethodPropertyDrawer> drawers = new List<MethodPropertyDrawer>();
+        private readonly ReorderableList arrayHandler;
+        public event Action OnRequireRedraw;
+
+        public ArrayConstructorDrawer(Type elementType) {
+            if(elementType == null) throw new ArgumentNullException(nameof(elementType));
+            this.elementType = elementType;
+            arrayHandler = new ReorderableList(drawers, typeof(MethodPropertyDrawer)) {
+                headerHeight = EditorGUIUtility.singleLineHeight,
+                elementHeightCallback = GetElementHeight,
+                drawElementCallback = DrawElement,
+                drawHeaderCallback = DrawTitle,
+                onAddCallback = AddItem,
+                onRemoveCallback = RemoveItem,
+            };
+        }
+
+        private void DrawElement(Rect rect, int index, bool isChecked, bool isDisabled) =>
+            drawers[index].Draw(isDisabled, Helper.ScaleRect(rect, offsetHeight: -listItemPadding));
+
+        private void DrawTitle(Rect rect) =>
+            GUI.Label(rect, $"{this.elementType.FullName}[]", EditorStyles.miniBoldLabel);
+
+        private void AddItem(ReorderableList list) {
+            var drawer = new MethodPropertyDrawer(elementType, "", null, true, false);
+            drawer.OnRequireRedraw += RequireRedraw;
+            drawers.Add(drawer);
+        }
+
+        private float GetElementHeight(int index) {
+            return EditorGUIUtility.singleLineHeight + listItemPadding;
+        }
+
+        private void RemoveItem(ReorderableList list) {
+            int selectedIndex = list.index;
+            if(selectedIndex < 0) selectedIndex = drawers.Count - 1;
+            drawers[selectedIndex].Dispose();
+            drawers.RemoveAt(selectedIndex);
+        }
+
+        public Array ToArray() {
+            int count = drawers.Count;
+            var array = Array.CreateInstance(elementType, drawers.Count);
+            for (int i = 0; i < count; i++)
+                array.SetValue(drawers[i].Value, i);
+            return array;
+        }
+
+        protected void RequireRedraw() => OnRequireRedraw?.Invoke();
+
+        public void Dispose() {
+            foreach(var entry in drawers)
+                entry?.Dispose();
+            drawers.Clear();
+        }
+
+        public void Draw() => arrayHandler.DoLayoutList();
     }
 }

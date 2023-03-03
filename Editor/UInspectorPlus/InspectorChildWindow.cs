@@ -58,6 +58,12 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             UpdateValues();
         }
 
-        private void UpdateValues() => drawer.UpdateValues(updateProps);
+        private void UpdateValues() {
+            if (drawer == null) {
+                Close();
+                return;
+            }
+            drawer.UpdateValues(updateProps);
+        }
     }
 }

@@ -33,6 +33,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         Vector2Int,
         Vector3Int,
         RectInt,
+        Type,
     }
 
     internal enum MethodMode {
@@ -85,6 +86,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         private static readonly Hashtable storedState = new Hashtable();
 
+        internal static readonly Type[] EmptyTypes = new Type[0];
+
         static Helper() {
             AddPropertyTypeMap<string>(PropertyType.String);
             AddPropertyTypeMap<bool>(PropertyType.Bool);
@@ -113,6 +116,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             AddPropertyTypeMap<Vector2Int>(PropertyType.Vector2Int);
             AddPropertyTypeMap<Vector3Int>(PropertyType.Vector3Int);
             AddPropertyTypeMap<RectInt>(PropertyType.RectInt);
+            AddPropertyTypeMap<Type>(PropertyType.Type);
 
             // Danger properties! Do not use them or they will instanate junks
             AddBlacklistedType<MeshFilter>(nameof(MeshFilter.mesh));
@@ -475,22 +479,22 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).FindStyle(styleName);
 
         internal static T GetOrDefault<T>(object value, T defaultValue = default) {
-            if (value == null) return defaultValue;
+            if(value == null) return defaultValue;
             try {
                 return (T)Convert.ChangeType(value, typeof(T));
-            } catch {}
+            } catch { }
             try {
                 return (T)value;
-            } catch {}
+            } catch { }
             return defaultValue;
         }
 
         internal static T GetOrConstruct<T>(object value) where T : new() => value == null ? new T() : (T)value;
 
         internal static TValue GetOrConstruct<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key) where TValue : new() {
-            if (!dict.TryGetValue(key, out var value)) {
+            if(!dict.TryGetValue(key, out var value)) {
                 value = new TValue();
-                if (!dict.IsReadOnly) dict.Add(key, value);
+                if(!dict.IsReadOnly) dict.Add(key, value);
             }
             return value;
         }
