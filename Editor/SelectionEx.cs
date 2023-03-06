@@ -108,7 +108,7 @@ namespace JLChnToZ.EditorExtensions.Selections {
                 if (expanded && DrawSelection(kv.Key)) updateSelection = true;
             }
             EditorGUILayout.EndScrollView();
-            if (DragAndDrop.objectReferences.Length > 0) 
+            if (DragAndDrop.objectReferences.Length > 0)
                 switch (eType) {
                     case EventType.DragUpdated:
                         DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
@@ -217,8 +217,8 @@ namespace JLChnToZ.EditorExtensions.Selections {
             if (obj == null || obj.Length == 0) return 0;
             int hashCode = 0;
             foreach (var entry in obj) unchecked {
-                if (entry != null) hashCode ^= entry.GetInstanceID();
-            }
+                    if (entry != null) hashCode ^= entry.GetInstanceID();
+                }
             return hashCode;
         }
 

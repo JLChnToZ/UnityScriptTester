@@ -21,11 +21,11 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         protected override void Draw(bool readOnly) {
-            if(target != null && (showListEdit = EditorGUILayout.Foldout(showListEdit, $"Edit List [{target.Count} Items]"))) {
-                if(arrayHandler == null) {
-                    if(arrayContentDrawer == null) {
+            if (target != null && (showListEdit = EditorGUILayout.Foldout(showListEdit, $"Edit List [{target.Count} Items]"))) {
+                if (arrayHandler == null) {
+                    if (arrayContentDrawer == null) {
                         arrayContentDrawer = new List<MethodPropertyDrawer>();
-                        for(int i = 0; i < target.Count; i++)
+                        for (int i = 0; i < target.Count; i++)
                             ListAddItem();
                     }
                     arrayHandler = new ReorderableList(target, elementType) {
@@ -34,7 +34,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                         drawElementCallback = (r, i, c, d) => {
                             arrayContentDrawer[i].Value = target[i];
                             arrayContentDrawer[i].Draw(target.IsReadOnly, Helper.ScaleRect(r, offsetHeight: -listItemPadding));
-                            if(arrayContentDrawer[i].Changed)
+                            if (arrayContentDrawer[i].Changed)
                                 target[i] = arrayContentDrawer[i].Value;
                         },
                         drawHeaderCallback = r => GUI.Label(r, target.ToString(), EditorStyles.miniBoldLabel),
@@ -75,7 +75,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public event Action OnRequireRedraw;
 
         public ArrayConstructorDrawer(Type elementType) {
-            if(elementType == null) throw new ArgumentNullException(nameof(elementType));
+            if (elementType == null) throw new ArgumentNullException(nameof(elementType));
             this.elementType = elementType;
             arrayHandler = new ReorderableList(drawers, typeof(MethodPropertyDrawer)) {
                 headerHeight = EditorGUIUtility.singleLineHeight,
@@ -105,7 +105,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         private void RemoveItem(ReorderableList list) {
             int selectedIndex = list.index;
-            if(selectedIndex < 0) selectedIndex = drawers.Count - 1;
+            if (selectedIndex < 0) selectedIndex = drawers.Count - 1;
             drawers[selectedIndex].Dispose();
             drawers.RemoveAt(selectedIndex);
         }
@@ -121,7 +121,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         protected void RequireRedraw() => OnRequireRedraw?.Invoke();
 
         public void Dispose() {
-            foreach(var entry in drawers)
+            foreach (var entry in drawers)
                 entry?.Dispose();
             drawers.Clear();
         }

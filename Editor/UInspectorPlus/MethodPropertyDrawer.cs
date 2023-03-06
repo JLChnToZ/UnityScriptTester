@@ -47,9 +47,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             get => component;
             set {
                 component = value;
-                if(selectedField != null && selectedField.DeclaringType != null && !selectedField.DeclaringType.IsInstanceOfType(component))
+                if (selectedField != null && selectedField.DeclaringType != null && !selectedField.DeclaringType.IsInstanceOfType(component))
                     selectedField = null;
-                if(selectedProperty != null && selectedField.DeclaringType != null && !selectedProperty.DeclaringType.IsInstanceOfType(component))
+                if (selectedProperty != null && selectedField.DeclaringType != null && !selectedProperty.DeclaringType.IsInstanceOfType(component))
                     selectedProperty = null;
             }
         }
@@ -58,7 +58,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             get => memberInfo;
             set {
                 memberInfo = value;
-                if(memberInfo != null)
+                if (memberInfo != null)
                     isInfoReadonly = memberInfo.IsReadOnly();
             }
         }
@@ -66,13 +66,13 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public MemberInfo RefFieldInfo {
             get => selectedField ?? selectedProperty as MemberInfo;
             set {
-                if(component == null)
+                if (component == null)
                     return;
                 InitFieldTypes();
-                if(value is FieldInfo) {
+                if (value is FieldInfo) {
                     selectedField = value as FieldInfo;
                     selectedFieldIndex = fields.FindIndex(field => field.field == value);
-                } else if(value is PropertyInfo) {
+                } else if (value is PropertyInfo) {
                     selectedProperty = value as PropertyInfo;
                     selectedFieldIndex = fields.FindIndex(field => field.property == value);
                 }
@@ -89,7 +89,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             get => allowReferenceMode;
             set {
                 allowReferenceMode = value;
-                if(!value && referenceMode)
+                if (!value && referenceMode)
                     ReferenceMode = false;
             }
         }
@@ -100,7 +100,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 referenceMode = value && allowReferenceMode;
                 fields.Clear();
                 fieldNames = new string[0];
-                if(referenceMode) {
+                if (referenceMode) {
                     rawValue = null;
                     InitFieldTypes();
                 } else {
@@ -116,9 +116,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             get => privateFields;
             set {
                 privateFields = value;
-                if(referenceMode)
+                if (referenceMode)
                     InitFieldTypes();
-                if(ctorDrawer != null)
+                if (ctorDrawer != null)
                     ctorDrawer.AllowPrivateFields = value;
             }
         }
@@ -127,9 +127,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             get => obsolete;
             set {
                 obsolete = value;
-                if(referenceMode)
+                if (referenceMode)
                     InitFieldTypes();
-                if(ctorDrawer != null)
+                if (ctorDrawer != null)
                     ctorDrawer.AllowObsolete = value;
             }
         }
@@ -138,9 +138,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         public object Value {
             get {
-                if(referenceMode) rawValue = GetReferencedValue();
+                if (referenceMode) rawValue = GetReferencedValue();
                 var convertedValue = rawValue;
-                if(rawValue != null && requiredType != typeof(object) && requiredType.IsInstanceOfType(rawValue))
+                if (rawValue != null && requiredType != typeof(object) && requiredType.IsInstanceOfType(rawValue))
                     try {
                         convertedValue = Convert.ChangeType(rawValue, requiredType);
                     } catch {
@@ -160,7 +160,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             get => getException;
             set {
                 getException = value;
-                if(Updatable)
+                if (Updatable)
                     Helper.StoreState(memberInfo, Updatable = false);
             }
         }
@@ -197,7 +197,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             memberInfo = property;
             isInfoReadonly = property.IsReadOnly();
             requiredType = property.PropertyType;
-            if(indexParams != null && indexParams.Length > 0) {
+            if (indexParams != null && indexParams.Length > 0) {
                 this.indexParams = indexParams;
                 var paramList = Helper.JoinStringList(null, indexParams.Select(new Func<object, string>(Convert.ToString)), ", ").ToString();
                 name = $"{property.GetMemberName(true, false)}[{paramList}]";
@@ -207,7 +207,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 nameContent = new GUIContent(name, property.GetMemberName());
             }
             hasGetValue = initValue;
-            if(initValue) rawValue = property.GetValue(target, indexParams);
+            if (initValue) rawValue = property.GetValue(target, indexParams);
             this.target = target;
             var getMethod = property.GetGetMethod();
             isStatic = getMethod != null && getMethod.IsStatic;
@@ -221,7 +221,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             name = parameter.Name;
             nameContent = new GUIContent(name, name);
             hasGetValue = true;
-            if(parameter.HasDefaultValue)
+            if (parameter.HasDefaultValue)
                 rawValue = parameter.DefaultValue;
             InitType();
         }
@@ -237,36 +237,36 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void InitType() {
-            if(requiredType.IsArray) {
+            if (requiredType.IsArray) {
                 castableTypes.Add(PropertyType.Array);
                 currentType = PropertyType.Array;
                 return;
             }
-            if(requiredType.IsByRef)
+            if (requiredType.IsByRef)
                 requiredType = requiredType.GetElementType();
-            if(requiredType.IsEnum) {
+            if (requiredType.IsEnum) {
                 castableTypes.Add(PropertyType.Enum);
                 castableTypes.Add(PropertyType.Integer);
                 currentType = PropertyType.Enum;
                 masked = Attribute.IsDefined(requiredType, typeof(FlagsAttribute));
                 return;
             }
-            foreach(var map in Helper.propertyTypeMapper) {
-                if(map.Key == requiredType || requiredType.IsSubclassOf(map.Key)) {
+            foreach (var map in Helper.propertyTypeMapper) {
+                if (map.Key == requiredType || requiredType.IsSubclassOf(map.Key)) {
                     castableTypes.Add(map.Value);
                     currentType = map.Value;
                     return;
                 }
             }
-            if(requiredType == typeof(object)) {
+            if (requiredType == typeof(object)) {
                 castableTypes.AddRange(Enum.GetValues(typeof(PropertyType)).Cast<PropertyType>());
                 castableTypes.Remove(PropertyType.Unknown);
                 castableTypes.Remove(PropertyType.Enum);
                 currentType = PropertyType.Object;
                 return;
             }
-            foreach(var map in Helper.propertyTypeMapper) {
-                if(map.Key.IsAssignableFrom(requiredType) && requiredType.IsAssignableFrom(map.Key))
+            foreach (var map in Helper.propertyTypeMapper) {
+                if (map.Key.IsAssignableFrom(requiredType) && requiredType.IsAssignableFrom(map.Key))
                     castableTypes.Add(map.Value);
             }
             currentType = castableTypes.Count > 0 ? castableTypes[0] : PropertyType.Unknown;
@@ -275,19 +275,19 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public void Draw() => Draw(false);
 
         public void Draw(bool readOnly, Rect? rect = null) {
-            if(target.IsInvalid() && memberInfo.IsInstanceMember())
+            if (target.IsInvalid() && memberInfo.IsInstanceMember())
                 return;
-            if(requiredType != null && requiredType.ContainsGenericParameters) {
+            if (requiredType != null && requiredType.ContainsGenericParameters) {
                 Rect sRect = rect.HasValue ? rect.Value : EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight, GUI.skin.button);
                 sRect = EditorGUI.PrefixLabel(sRect, nameContent);
                 GUI.Label(sRect, "Unresolved Generic Type");
                 return;
             }
-            if(!hasGetValue) {
+            if (!hasGetValue) {
                 const string labelText = "Fetch Value...";
                 Rect sRect = rect.HasValue ? rect.Value : EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight, GUI.skin.button);
                 sRect = EditorGUI.PrefixLabel(sRect, nameContent);
-                if(GUI.Button(sRect, labelText, GUI.skin.button)) {
+                if (GUI.Button(sRect, labelText, GUI.skin.button)) {
                     hasGetValue = true;
                     rawValue = (memberInfo as PropertyInfo).GetValue(target);
                 }
@@ -302,68 +302,71 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 ) ||
                 allowReferenceMode ||
                 castableTypes.Count > 1;
-            if(rect.HasValue) {
+            if (rect.HasValue) {
                 Rect sRect = referenceModeBtn ? Helper.ScaleRect(rect.Value, offsetWidth: -EditorGUIUtility.singleLineHeight) : rect.Value;
-                if(referenceMode || grabValueMode == 1)
+                if (referenceMode || grabValueMode == 1)
                     DrawReferencedField(sRect);
-                else if(grabValueMode == 4)
+                else if (grabValueMode == 4)
                     DrawArrayCtorField(sRect);
-                else if(grabValueMode == 3)
+                else if (grabValueMode == 3)
                     DrawRequestReferenceField(sRect);
                 else
                     DrawDirectField(readOnly, sRect);
             } else {
                 EditorGUI.indentLevel--;
                 EditorGUILayout.BeginHorizontal();
-                if(ShowUpdatable) {
+                if (ShowUpdatable) {
                     Updatable = EditorGUILayout.ToggleLeft(new GUIContent("", "Update Enabled"), Updatable, GUILayout.Width(EditorGUIUtility.singleLineHeight));
                     Helper.StoreState(memberInfo, Updatable);
                 } else
                     EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
-                if(referenceMode || grabValueMode == 1)
+                if (referenceMode || grabValueMode == 1)
                     DrawReferencedField(null);
-                else if(grabValueMode == 4)
+                else if (grabValueMode == 4)
                     DrawArrayCtorField(null);
-                else if(grabValueMode == 3)
+                else if (grabValueMode == 3)
                     DrawRequestReferenceField(null);
                 else
                     DrawDirectField(readOnly, null);
             }
-            if(!readOnly && referenceModeBtn) {
-                if(rect.HasValue) {
-                    if(GUI.Button(Helper.ScaleRect(rect.Value, 1, 0.5F, 0, 0, -EditorGUIUtility.singleLineHeight, -7.5F, 15, 15), EditorGUIUtility.IconContent("_Menu"), EditorStyles.miniLabel))
+            bool hasMatchMenu = false;
+            if (grabValueMode != 3)
+                hasMatchMenu = DrawAssignButton(rect.HasValue ? (Rect?)Helper.ScaleRect(rect.Value, 1, 0.5F, 0, 0, -EditorGUIUtility.singleLineHeight, -7.5F, 15, 15) : null);
+            if (!hasMatchMenu && !readOnly && referenceModeBtn) {
+                if (rect.HasValue) {
+                    if (GUI.Button(rect.Value.ScaleRect(1, 0.5F, 0, 0, -EditorGUIUtility.singleLineHeight, -7.5F, 15, 15), EditorGUIUtility.IconContent("_Menu"), EditorStyles.miniLabel))
                         ShowMenu(rect.Value);
                 } else {
-                    if(GUILayout.Button(EditorGUIUtility.IconContent("_Menu"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
+                    if (GUILayout.Button(EditorGUIUtility.IconContent("_Menu"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
                         ShowMenu(menuButtonRect);
-                    if(Event.current.type == EventType.Repaint)
+                    if (Event.current.type == EventType.Repaint)
                         menuButtonRect = GUILayoutUtility.GetLastRect();
                 }
             }
-            if(!rect.HasValue)
+            if (!rect.HasValue)
                 EditorGUILayout.EndHorizontal();
-            if(grabValueMode == 2)
+            if (grabValueMode == 2)
                 DrawCtorField();
-            if(!rect.HasValue)
+            if (!rect.HasValue)
                 EditorGUI.indentLevel++;
-            if(getException != null) {
+            if (getException != null) {
                 var exceptions = new HashSet<Exception>();
                 var sb = new System.Text.StringBuilder();
                 var exception = getException;
                 do {
-                    if(!exceptions.Add(exception)) break;
-                    if(sb.Length > 0) sb.AppendLine();
+                    if (!exceptions.Add(exception)) break;
+                    if (sb.Length > 0) sb.AppendLine();
                     sb.Append('>', exceptions.Count - 1);
                     sb.Append($"{exception.GetType().Name}: {exception.Message}");
-                } while((exception = exception.InnerException) != null);
+                } while ((exception = exception.InnerException) != null);
                 EditorGUILayout.HelpBox(sb.ToString(), MessageType.Error);
             }
         }
 
         public bool UpdateIfChanged() {
-            if(!Changed)
+            if (!Changed)
                 return false;
-            if(Helper.AssignValue(memberInfo, target, Value, indexParams))
+            if (Helper.AssignValue(memberInfo, target, Value, indexParams))
                 return true;
             UpdateValue();
             Changed = false;
@@ -372,13 +375,13 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         public bool UpdateValue() {
             hasGetValue = true;
-            if(memberInfo.FetchValue(target, out var value, indexParams)) {
+            if (memberInfo.FetchValue(target, out var value, indexParams)) {
                 rawValue = value;
                 GetException = null;
                 return true;
             }
             // Filter out index out of range / key not found exception
-            if(indexParams != null &&
+            if (indexParams != null &&
                 indexParams.Length > 0 &&
                 (value is IndexOutOfRangeException ||
                 value is KeyNotFoundException))
@@ -391,14 +394,14 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         public void Dispose() {
             drawerRequestingReferences.Remove(this);
-            if(ctorDrawer != null) ctorDrawer.Dispose();
+            if (ctorDrawer != null) ctorDrawer.Dispose();
         }
 
         private void AddField(UnityObject target) {
-            if(target.IsInvalid())
+            if (target.IsInvalid())
                 return;
             BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy;
-            if(privateFields)
+            if (privateFields)
                 flag |= BindingFlags.NonPublic;
             fields.AddRange(
                 target.GetType().GetFields(flag)
@@ -422,8 +425,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             fields.Clear();
             AddField(component);
             var gameObject = component as GameObject;
-            if(gameObject != null)
-                foreach(var c in gameObject.GetComponents(typeof(Component)))
+            if (gameObject != null)
+                foreach (var c in gameObject.GetComponents(typeof(Component)))
                     AddField(c);
             fieldNames = fields.Select(m => $"{m.target.GetType().Name} ({m.target.GetInstanceID()})/{(m.property ?? m.field as MemberInfo).GetMemberName()}").ToArray();
             selectedFieldIndex = -1;
@@ -431,19 +434,39 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         private object GetReferencedValue() => (selectedField ?? selectedProperty as MemberInfo).FetchValue(component, out var val) ? val : null;
 
+        private bool DrawAssignButton(Rect? rect) {
+            MethodPropertyDrawer finishedDrawer = null;
+            bool hasButton = false;
+            foreach (var drawer in MethodPropertyDrawer.drawerRequestingReferences)
+                if (drawer.requiredType.IsAssignableFrom(requiredType)) {
+                    hasButton = true;
+                    if (
+                        rect.HasValue ?
+                        GUI.Button(rect.Value, EditorGUIUtility.IconContent("Linked"), EditorStyles.miniLabel) :
+                        GUILayout.Button(EditorGUIUtility.IconContent("Linked"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false))
+                    ) {
+                        drawer.Value = rawValue;
+                        drawer.SetDirty();
+                        finishedDrawer = drawer;
+                    }
+                }
+            if (finishedDrawer != null) drawerRequestingReferences.Remove(finishedDrawer);
+            return hasButton;
+        }
+
         private void DrawCtorField() {
-            if(ctorDrawer == null) {
+            if (ctorDrawer == null) {
                 ctorDrawer = new ComponentMethodDrawer(requiredType);
                 ctorDrawer.OnRequireRedraw += RequireRedraw;
             }
             EditorGUI.indentLevel++;
             EditorGUILayout.BeginVertical();
             ctorDrawer.Draw();
-            if(ctorDrawer.Info != null && GUILayout.Button("Construct"))
+            if (ctorDrawer.Info != null && GUILayout.Button("Construct"))
                 ctorDrawer.Call();
             EditorGUILayout.EndVertical();
             EditorGUI.indentLevel--;
-            if(ctorDrawer.Value != null) {
+            if (ctorDrawer.Value != null) {
                 rawValue = ctorDrawer.Value;
                 Changed = true;
                 grabValueMode = 0;
@@ -453,14 +476,14 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         private void DrawRequestReferenceField(Rect? rect) {
             bool buttonClicked;
-            if(rect.HasValue) {
+            if (rect.HasValue) {
                 rect = EditorGUI.PrefixLabel(rect.Value, new GUIContent("Requesting References..."));
                 buttonClicked = GUI.Button(rect.Value, "Cancel", EditorStyles.miniButton);
             } else {
                 EditorGUILayout.PrefixLabel(new GUIContent("Requesting References..."));
                 buttonClicked = GUILayout.Button("Cancel", EditorStyles.miniButton);
             }
-            if(buttonClicked || !drawerRequestingReferences.Contains(this)) {
+            if (buttonClicked || !drawerRequestingReferences.Contains(this)) {
                 grabValueMode = 0;
                 drawerRequestingReferences.Remove(this);
                 RequireRedraw();
@@ -468,32 +491,32 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void DrawReferencedField(Rect? rect) {
-            if(rect.HasValue)
+            if (rect.HasValue)
                 component = EditorGUI.ObjectField(Helper.ScaleRect(rect.Value, 0, 0, 0.5F, 1), name, component, typeof(UnityObject), true);
             else
                 component = EditorGUILayout.ObjectField(name, component, typeof(UnityObject), true);
-            if(component == null) {
+            if (component == null) {
                 EditorGUI.BeginDisabledGroup(true);
-                if(rect.HasValue)
+                if (rect.HasValue)
                     EditorGUI.Popup(Helper.ScaleRect(rect.Value, 0.5F, 0, 0.5F, 1), 0, new string[0]);
                 else
                     EditorGUILayout.Popup(0, new string[0]);
                 EditorGUI.EndDisabledGroup();
                 return;
             }
-            if(GUI.changed) {
+            if (GUI.changed) {
                 InitFieldTypes();
                 GUI.changed = false;
             }
-            if(rect.HasValue)
+            if (rect.HasValue)
                 selectedFieldIndex = EditorGUI.Popup(Helper.ScaleRect(rect.Value, 0.5F, 0, 0.5F, 1), selectedFieldIndex, fieldNames);
             else
                 selectedFieldIndex = EditorGUILayout.Popup(selectedFieldIndex, fieldNames);
-            if(selectedFieldIndex > -1) {
+            if (selectedFieldIndex > -1) {
                 component = fields[selectedFieldIndex].target;
                 selectedField = fields[selectedFieldIndex].field;
                 selectedProperty = fields[selectedFieldIndex].property;
-                if(grabValueMode == 1) {
+                if (grabValueMode == 1) {
                     rawValue = GetReferencedValue();
                     grabValueMode = 0;
                     RequireRedraw();
@@ -505,144 +528,144 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             object value = rawValue;
             Color color = GUI.color;
             FontStyle fontStyle = EditorStyles.label.fontStyle;
-            if(isPrivate)
+            if (isPrivate)
                 GUI.color = new Color(color.r, color.g, color.b, color.a * 0.5F);
-            if(isStatic)
+            if (isStatic)
                 EditorStyles.label.fontStyle |= FontStyle.Italic;
             GUI.changed = false;
             try {
-                switch(currentType) {
+                switch (currentType) {
                     case PropertyType.Bool:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.Toggle(rect.Value, nameContent, (bool)(value ?? false));
                         else
                             value = EditorGUILayout.Toggle(nameContent, (bool)(value ?? false));
                         break;
                     case PropertyType.Enum:
-                        if(value == null) value = Activator.CreateInstance(requiredType);
-                        if(masked) {
-                            if(rect.HasValue)
+                        if (value == null) value = Activator.CreateInstance(requiredType);
+                        if (masked) {
+                            if (rect.HasValue)
                                 value = EditorGUI.EnumFlagsField(rect.Value, nameContent, (Enum)value);
                             else
                                 value = EditorGUILayout.EnumFlagsField(nameContent, (Enum)value);
                             break;
                         }
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.EnumPopup(rect.Value, nameContent, (Enum)value);
                         else
                             value = EditorGUILayout.EnumPopup(nameContent, (Enum)value);
                         break;
                     case PropertyType.Long:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.LongField(rect.Value, nameContent, Helper.GetOrDefault<long>(value));
                         else
                             value = EditorGUILayout.LongField(nameContent, Helper.GetOrDefault<long>(value));
                         break;
                     case PropertyType.Integer:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.IntField(rect.Value, nameContent, Helper.GetOrDefault<int>(value));
                         else
                             value = EditorGUILayout.IntField(nameContent, Helper.GetOrDefault<int>(value));
                         break;
                     case PropertyType.Double:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.DoubleField(rect.Value, nameContent, Helper.GetOrDefault<double>(value));
                         else
                             value = EditorGUILayout.DoubleField(nameContent, Helper.GetOrDefault<double>(value));
                         break;
                     case PropertyType.Single:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.FloatField(rect.Value, nameContent, Helper.GetOrDefault<float>(value));
                         else
                             value = EditorGUILayout.FloatField(nameContent, Helper.GetOrDefault<float>(value));
                         break;
                     case PropertyType.Vector2:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.Vector2Field(rect.Value, nameContent, Helper.GetOrDefault<Vector2>(value));
                         else
                             value = EditorGUILayout.Vector2Field(nameContent, Helper.GetOrDefault<Vector2>(value));
                         break;
                     case PropertyType.Vector2Int:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.Vector2IntField(rect.Value, nameContent, Helper.GetOrDefault<Vector2Int>(value));
                         else
                             value = EditorGUILayout.Vector2IntField(nameContent, Helper.GetOrDefault<Vector2Int>(value));
                         break;
                     case PropertyType.Vector3:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.Vector3Field(rect.Value, nameContent, Helper.GetOrDefault<Vector3>(value));
                         else
                             value = EditorGUILayout.Vector3Field(nameContent, Helper.GetOrDefault<Vector3>(value));
                         break;
                     case PropertyType.Vector3Int:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.Vector3IntField(rect.Value, nameContent, Helper.GetOrDefault<Vector3Int>(value));
                         else
                             value = EditorGUILayout.Vector3IntField(nameContent, Helper.GetOrDefault<Vector3Int>(value));
                         break;
                     case PropertyType.Vector4:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.Vector4Field(rect.Value, name, Helper.GetOrDefault<Vector4>(value));
                         else
                             value = EditorGUILayout.Vector4Field(name, Helper.GetOrDefault<Vector4>(value));
                         break;
                     case PropertyType.Quaterion:
-                        if(masked) {
-                            if(rect.HasValue)
+                        if (masked) {
+                            if (rect.HasValue)
                                 value = Helper.EulerField(rect.Value, name, Helper.GetOrDefault(value, Quaternion.identity));
                             else
                                 value = Helper.EulerField(name, Helper.GetOrDefault(value, Quaternion.identity));
                             break;
                         }
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = Helper.QuaternionField(rect.Value, name, Helper.GetOrDefault(value, Quaternion.identity));
                         else
                             value = Helper.QuaternionField(name, Helper.GetOrDefault(value, Quaternion.identity));
                         break;
                     case PropertyType.Color:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.ColorField(rect.Value, nameContent, Helper.GetOrDefault<Color>(value));
                         else
                             value = EditorGUILayout.ColorField(nameContent, Helper.GetOrDefault<Color>(value));
                         break;
                     case PropertyType.Rect:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.RectField(rect.Value, nameContent, Helper.GetOrDefault<Rect>(value));
                         else
                             value = EditorGUILayout.RectField(nameContent, Helper.GetOrDefault<Rect>(value));
                         break;
                     case PropertyType.RectInt:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.RectIntField(rect.Value, nameContent, Helper.GetOrDefault<RectInt>(value));
                         else
                             value = EditorGUILayout.RectIntField(nameContent, Helper.GetOrDefault<RectInt>(value));
                         break;
                     case PropertyType.Bounds:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.BoundsField(rect.Value, nameContent, Helper.GetOrDefault<Bounds>(value));
                         else
                             value = EditorGUILayout.BoundsField(nameContent, Helper.GetOrDefault<Bounds>(value));
                         break;
                     case PropertyType.Gradient:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = Helper.GradientField(rect.Value, nameContent, Helper.GetOrConstruct<Gradient>(value));
                         else
                             value = Helper.GradientField(nameContent, Helper.GetOrConstruct<Gradient>(value));
                         break;
                     case PropertyType.Curve:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = EditorGUI.CurveField(rect.Value, nameContent, Helper.GetOrConstruct<AnimationCurve>(value));
                         else
                             value = EditorGUILayout.CurveField(nameContent, Helper.GetOrConstruct<AnimationCurve>(value));
                         break;
                     case PropertyType.Object:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = Helper.ObjectField(rect.Value, nameContent, value as UnityObject, requiredType, true, readOnly);
                         else
                             value = Helper.ObjectField(nameContent, value as UnityObject, requiredType, true, readOnly);
                         break;
                     case PropertyType.String:
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             value = Helper.StringField(rect.Value, nameContent, (string)value, readOnly);
                         else
                             value = Helper.StringField(nameContent, (string)value, readOnly);
@@ -652,25 +675,25 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                         var rect2 = rect.HasValue ? rect.Value : EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight, EditorStyles.textField);
                         rect2 = EditorGUI.PrefixLabel(rect2, nameContent);
                         Rect buttonRect;
-                        if(rect.HasValue) {
+                        if (rect.HasValue) {
                             buttonRect = Helper.ScaleRect(rect2, 1, 0, 0, 1, -34, 0, 32);
                             rect2 = Helper.ScaleRect(rect2, 0, 0, 1, 1, 0, 0, -36);
                         } else
                             buttonRect = Rect.zero;
-                        if(GUI.Button(rect2, value is Type t ? $"T: {t.FullName}" : "<Null>", EditorStyles.textField) && !readOnly) {
+                        if (GUI.Button(rect2, value is Type t ? $"T: {t.FullName}" : "<Null>", EditorStyles.textField) && !readOnly) {
                             var typeMatcherPopup = new TypeMatcherPopup(null);
                             typeMatcherPopup.OnSelected += type => rawValue = type;
                             PopupWindow.Show(rect2, typeMatcherPopup);
                         }
                         EditorGUI.EndDisabledGroup();
-                        if(rect.HasValue)
+                        if (rect.HasValue)
                             DrawUnknownField(readOnly, value, buttonRect);
                         else
                             DrawUnknownField(readOnly, value);
                         break;
                     default:
                         var stringValue = value != null ? value.ToString() : "<Null>";
-                        if(rect.HasValue) {
+                        if (rect.HasValue) {
                             Helper.StringField(Helper.ScaleRect(rect.Value, 0, 0, 1, 1, 0, 0, -36), nameContent, stringValue, true);
                             DrawUnknownField(readOnly, value, Helper.ScaleRect(rect.Value, 1, 0, 0, 1, -34, 0, 32));
                         } else {
@@ -679,13 +702,13 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                         }
                         break;
                 }
-            } catch(InvalidCastException) {
-                if(Event.current.type == EventType.Repaint)
+            } catch (InvalidCastException) {
+                if (Event.current.type == EventType.Repaint)
                     value = null;
                 else
                     RequireRedraw();
             }
-            if(!readOnly) {
+            if (!readOnly) {
                 Changed |= GUI.changed;
                 rawValue = value;
             }
@@ -694,83 +717,88 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void DrawUnknownField(bool readOnly, object target, Rect? position = null) {
-            if(target.IsInvalid())
+            if (target.IsInvalid())
                 return;
             bool clicked;
-            if(!position.HasValue)
+            if (!position.HasValue)
                 clicked = GUILayout.Button(EditorGUIUtility.IconContent("MoreOptions"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
             else
                 clicked = GUI.Button(position.Value, EditorGUIUtility.IconContent("MoreOptions"), EditorStyles.miniLabel);
-            if(clicked)
+            if (clicked)
                 InspectorChildWindow.Open(target, true, privateFields, obsolete, true, false, this);
         }
 
         private void DrawArrayCtorField(Rect? position = null) {
-            if(!position.HasValue) EditorGUILayout.BeginVertical();
-            if(requiredType.IsGenericType) {
-                if(position.HasValue)
+            if (!position.HasValue) EditorGUILayout.BeginVertical();
+            if (requiredType.IsGenericType) {
+                if (position.HasValue)
                     EditorGUI.HelpBox(position.Value, "Type is not resolved.", MessageType.Error);
                 else
                     EditorGUILayout.HelpBox("Type is not resolved.", MessageType.Error);
                 return;
             }
-            if(arrayConstructorDrawer == null) arrayConstructorDrawer = new ArrayConstructorDrawer(requiredType.GetElementType());
+            if (arrayConstructorDrawer == null) arrayConstructorDrawer = new ArrayConstructorDrawer(requiredType.GetElementType());
             arrayConstructorDrawer.Draw();
-            if(position.HasValue ? GUI.Button(position.Value, "Create Array") : GUILayout.Button("Create Array")) {
+            if (position.HasValue ? GUI.Button(position.Value, "Create Array") : GUILayout.Button("Create Array")) {
                 Value = arrayConstructorDrawer.ToArray();
                 arrayConstructorDrawer.Dispose();
                 arrayConstructorDrawer = null;
                 grabValueMode = 0;
             }
-            if(!position.HasValue) EditorGUILayout.EndVertical();
+            if (!position.HasValue) EditorGUILayout.EndVertical();
         }
 
         private void ShowMenu(Rect position) {
             var menu = new GenericMenu();
-            if(castableTypes.Count > 1)
-                foreach(var type in castableTypes)
+            if (castableTypes.Count > 1)
+                foreach (var type in castableTypes)
                     menu.AddItem(new GUIContent("Type/" + type), currentType == type, ChangeType, type);
-            if(allowReferenceMode) {
+            if (allowReferenceMode) {
                 menu.AddItem(new GUIContent("Mode/By Value"), !referenceMode, ChangeRefMode, false);
                 menu.AddItem(new GUIContent("Mode/By Reference"), referenceMode, ChangeRefMode, true);
             }
-            if(!allowReferenceMode || !referenceMode) {
-                if(!allowReferenceMode)
+            if (!allowReferenceMode || !referenceMode) {
+                if (!allowReferenceMode)
                     menu.AddItem(new GUIContent("Mode/By Value"), grabValueMode == 0, GrabValueMode, 0);
                 menu.AddItem(new GUIContent("Mode/From Component"), grabValueMode == 1, GrabValueMode, 1);
-                switch(currentType) {
+                switch (currentType) {
                     case PropertyType.Array:
                         menu.AddItem(new GUIContent("Mode/Construct"), grabValueMode == 4, GrabValueMode, 4);
                         break;
                     case PropertyType.Unknown:
+                    case PropertyType.Type:
                         menu.AddItem(new GUIContent("Mode/Construct"), grabValueMode == 2, GrabValueMode, 2);
                         menu.AddItem(new GUIContent("Mode/From Opened Inspectors"), grabValueMode == 3, GrabValueMode, 3);
                         break;
                 }
             }
-            if(currentType == PropertyType.Enum)
+            if (currentType == PropertyType.Enum)
                 menu.AddItem(new GUIContent("Multiple Selection"), masked, ChangeMultiSelect, !masked);
-            if(currentType == PropertyType.Quaterion)
+            if (currentType == PropertyType.Quaterion)
                 menu.AddItem(new GUIContent("Euler Angles"), masked, ChangeMultiSelect, !masked);
-            if(OptionalPrivateFields) {
-                if(referenceMode)
+            if (OptionalPrivateFields) {
+                if (referenceMode)
                     menu.AddItem(new GUIContent("Allow Private Members"), privateFields, ChangePrivateFields, !privateFields);
                 else
                     menu.AddDisabledItem(new GUIContent("Allow Private Members"));
             }
-            if(OnClose != null || OnEdit != null) {
+            if (OnClose != null || OnEdit != null) {
                 menu.AddSeparator("");
-                if(OnEdit != null)
+                if (OnEdit != null)
                     menu.AddItem(new GUIContent("Edit Query..."), false, OnEdit);
-                if(OnClose != null)
+                if (OnClose != null)
                     menu.AddItem(new GUIContent("Close"), false, OnClose);
+            }
+            if (!requiredType.IsValueType && !isInfoReadonly) {
+                menu.AddSeparator("");
+                menu.AddItem(new GUIContent("Set To Null"), false, SetNull);
             }
             menu.DropDown(position);
         }
 
         private void ChangeType(object value) {
             var type = (PropertyType)value;
-            if(castableTypes.Contains(type))
+            if (castableTypes.Contains(type))
                 currentType = type;
         }
 
@@ -782,10 +810,16 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         private void GrabValueMode(object value) {
             grabValueMode = (int)value;
-            if(grabValueMode == 3)
+            if (grabValueMode == 3)
                 drawerRequestingReferences.Add(this);
             else
                 drawerRequestingReferences.Remove(this);
+        }
+
+        private void SetNull() {
+            Value = null;
+            Changed = true;
+            RequireRedraw();
         }
 
         private void ChangeMultiSelect(object value) => masked = (bool)value;

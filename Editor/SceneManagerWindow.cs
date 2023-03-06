@@ -179,7 +179,7 @@ namespace JLChnToZ.EditorExtensions.SceneManagement {
                 } else if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) {
                     playScene = true;
                     var loadedScenes = new List<string>(EditorSceneManager.loadedSceneCount);
-                    for(int i = 0, c = EditorSceneManager.loadedSceneCount; i < c; i++) {
+                    for (int i = 0, c = EditorSceneManager.loadedSceneCount; i < c; i++) {
                         Scene scene = SceneManager.GetSceneAt(i);
                         if (scene.IsValid() && !string.IsNullOrEmpty(scene.path))
                             loadedScenes.Add(scene.path);

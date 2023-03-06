@@ -22,13 +22,13 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public string SearchText {
             get => searchText;
             set {
-                if(searchText == value) return;
+                if (searchText == value) return;
                 searchText = value;
-                if(bgWorker == null)
+                if (bgWorker == null)
                     bgWorker = new Thread(DoSearch) {
                         IsBackground = true,
                     };
-                if(!bgWorker.IsAlive)
+                if (!bgWorker.IsAlive)
                     bgWorker.Start();
             }
         }
@@ -38,7 +38,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public float Width => maxWidth;
 
         public void Draw() {
-            if(searchTypeResult == null || searchTypeResult.Length == 0) return;
+            if (searchTypeResult == null || searchTypeResult.Length == 0) return;
             GUIContent temp = new GUIContent();
             GUILayout.BeginVertical();
             /*
@@ -49,15 +49,15 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             );
             GUILayout.Space(8);
             */
-            for(int i = 0; i < Math.Min(searchTypeResult.Length, 500); i++) {
+            for (int i = 0; i < Math.Min(searchTypeResult.Length, 500); i++) {
                 Type type = searchTypeResult[i];
                 temp.text = type.FullName;
                 temp.tooltip = type.AssemblyQualifiedName;
                 maxWidth = Mathf.Max(maxWidth, EditorStyles.boldLabel.CalcSize(temp).x);
-                if(GUILayout.Button(temp, EditorStyles.linkLabel))
+                if (GUILayout.Button(temp, EditorStyles.linkLabel))
                     OnSelected?.Invoke(type);
             }
-            if(searchTypeResult.Length > 500)
+            if (searchTypeResult.Length > 500)
                 EditorGUILayout.HelpBox(
                     "Too many results, please try more specific search phase.",
                     MessageType.Warning
@@ -67,7 +67,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void InitSearch() {
-            if(currentDomain == null) {
+            if (currentDomain == null) {
                 currentDomain = AppDomain.CurrentDomain;
                 searchedTypes.UnionWith(
                     from assembly in currentDomain.GetAssemblies()
@@ -77,7 +77,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 currentDomain.AssemblyLoad += OnAssemblyLoad;
                 currentDomain.DomainUnload += OnAppDomainUnload;
             }
-            if(pendingAssemblies.Count > 0) {
+            if (pendingAssemblies.Count > 0) {
                 var buffer = pendingAssemblies.ToArray();
                 pendingAssemblies.Clear();
                 searchedTypes.UnionWith(
@@ -102,16 +102,16 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             try {
                 InitSearch();
                 var searchText = this.searchText;
-                while(true) {
+                while (true) {
                     Thread.Sleep(100);
                     List<Type> searchTypeResult = new List<Type>();
-                    if(!string.IsNullOrEmpty(searchText))
-                        foreach(Type type in searchedTypes) {
-                            if(searchText != this.searchText) break;
-                            if(type.AssemblyQualifiedName.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 && IsTypeRseolvable(type))
+                    if (!string.IsNullOrEmpty(searchText))
+                        foreach (Type type in searchedTypes) {
+                            if (searchText != this.searchText) break;
+                            if (type.AssemblyQualifiedName.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 && Helper.IsTypeRseolvable(genericType, type))
                                 searchTypeResult.Add(type);
                         }
-                    if(searchText == this.searchText) {
+                    if (searchText == this.searchText) {
                         this.searchTypeResult = searchTypeResult.ToArray();
                         break;
                     } else {
@@ -119,7 +119,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                     }
                 }
                 EditorApplication.update += RequestRedraw;
-            } catch(Exception ex) {
+            } catch (Exception ex) {
                 Helper.PrintExceptionsWithInner(ex);
             } finally {
                 bgWorker = null;
@@ -128,34 +128,12 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         private void RequestRedraw() {
             EditorApplication.update -= RequestRedraw;
-            if(OnRequestRedraw != null) OnRequestRedraw.Invoke();
-        }
-
-        private bool IsTypeRseolvable(Type type) {
-            if(genericType == null) return true;
-            if(genericType.IsGenericParameter) {
-                var attributes = genericType.GenericParameterAttributes;
-
-                if((
-                    attributes.HasFlag(GenericParameterAttributes.ReferenceTypeConstraint) &&
-                    type.IsValueType
-                ) || (
-                    attributes.HasFlag(GenericParameterAttributes.NotNullableValueTypeConstraint) &&
-                    !type.IsValueType
-                ) || (
-                    attributes.HasFlag(GenericParameterAttributes.DefaultConstructorConstraint) &&
-                    type.GetConstructor(BindingFlags.Instance | BindingFlags.Public, null, CallingConventions.HasThis, Helper.EmptyTypes, null) == null
-                )) return false;
-                foreach(var constrarint in genericType.GetGenericParameterConstraints())
-                    if(!constrarint.IsAssignableFrom(type)) return false;
-                return true;
-            }
-            return true;
+            if (OnRequestRedraw != null) OnRequestRedraw.Invoke();
         }
 
         public void Dispose() {
             try {
-                if(currentDomain != null) {
+                if (currentDomain != null) {
                     currentDomain.AssemblyLoad -= OnAssemblyLoad;
                     currentDomain.DomainUnload -= OnAppDomainUnload;
                 }
@@ -164,7 +142,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 currentDomain = null;
             }
             try {
-                if(bgWorker != null && bgWorker.IsAlive)
+                if (bgWorker != null && bgWorker.IsAlive)
                     bgWorker.Abort();
             } catch {
             } finally {
@@ -192,7 +170,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         );
 
         public override void OnGUI(Rect rect) {
-            if(typeMatcher == null) return;
+            if (typeMatcher == null) return;
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             typeMatcher.SearchText = Helper.ToolbarSearchField(typeMatcher.SearchText ?? string.Empty);
             EditorGUILayout.EndHorizontal();
@@ -202,18 +180,18 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         public override void OnOpen() {
-            if(typeMatcher == null) {
+            if (typeMatcher == null) {
                 typeMatcher = new TypeMatcher {
                     genericType = genericType,
                 };
-                if(OnRequestRedraw != null) typeMatcher.OnRequestRedraw += OnRequestRedraw;
+                if (OnRequestRedraw != null) typeMatcher.OnRequestRedraw += OnRequestRedraw;
                 typeMatcher.OnSelected += Selected;
                 scrollPos = Vector2.zero;
             }
         }
 
         public override void OnClose() {
-            if(typeMatcher != null) {
+            if (typeMatcher != null) {
                 typeMatcher.Dispose();
                 typeMatcher = null;
             }
@@ -226,7 +204,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
     }
 
     internal class TypeResolverGUI {
-        private readonly Type srcType;
+        public readonly Type srcType;
         private readonly MethodInfo srcMethod;
 
         private readonly Type[] constraints;
@@ -235,9 +213,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         public bool IsReady {
             get {
-                for(int i = 0; i < resolvedTypes.Length; i++) {
+                for (int i = 0; i < resolvedTypes.Length; i++) {
                     Type entry = resolvedTypes[i];
-                    if(entry == null || (entry.ContainsGenericParameters && (subGUI[i] == null || !subGUI[i].IsReady)))
+                    if (entry == null || (entry.ContainsGenericParameters && (subGUI[i] == null || !subGUI[i].IsReady)))
                         return false;
                 }
                 return true;
@@ -263,10 +241,10 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         public void Draw() {
-            for(int i = 0; i < constraints.Length; i++) {
+            for (int i = 0; i < constraints.Length; i++) {
                 var rect = EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight, EditorStyles.textField);
                 rect = EditorGUI.PrefixLabel(rect, new GUIContent(constraints[i].Name));
-                if(GUI.Button(rect, resolvedTypes[i] != null ? $"T: {resolvedTypes[i].FullName}" : "", EditorStyles.textField)) {
+                if (GUI.Button(rect, resolvedTypes[i] != null ? $"T: {resolvedTypes[i].FullName}" : "", EditorStyles.textField)) {
                     int index = i;
                     var typeMatcherPopup = new TypeMatcherPopup(constraints[i]);
                     typeMatcherPopup.OnSelected += type => {
@@ -275,8 +253,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                     };
                     PopupWindow.Show(rect, typeMatcherPopup);
                 }
-                if(resolvedTypes[i] != null && resolvedTypes[i].ContainsGenericParameters) {
-                    if(subGUI[i] == null) subGUI[i] = new TypeResolverGUI(resolvedTypes[i]);
+                if (resolvedTypes[i] != null && resolvedTypes[i].ContainsGenericParameters) {
+                    if (subGUI[i] == null) subGUI[i] = new TypeResolverGUI(resolvedTypes[i]);
                     EditorGUI.indentLevel++;
                     subGUI[i].Draw();
                     EditorGUI.indentLevel--;
@@ -285,8 +263,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         Type[] Resolve() {
-            for(int i = 0; i < resolvedTypes.Length; i++)
-                if(subGUI[i] != null) resolvedTypes[i] = subGUI[i].ResolvedType;
+            for (int i = 0; i < resolvedTypes.Length; i++)
+                if (subGUI[i] != null) resolvedTypes[i] = subGUI[i].ResolvedType;
             return resolvedTypes;
         }
     }

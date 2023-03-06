@@ -70,14 +70,14 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         static InspectorDrawer() {
             var currentDomain = AppDomain.CurrentDomain;
             currentDomain.AssemblyLoad += OnAssemblyLoad;
-            foreach(var assembly in currentDomain.GetAssemblies())
+            foreach (var assembly in currentDomain.GetAssemblies())
                 RegisterInspectorDrawers(assembly);
         }
 
         private static void OnAssemblyLoad(object sender, AssemblyLoadEventArgs args) => RegisterInspectorDrawers(args.LoadedAssembly);
 
         private static void RegisterInspectorDrawers(Assembly assembly) {
-            foreach(var type in assembly.GetTypes())
+            foreach (var type in assembly.GetTypes())
                 typedDrawers.UnionWith(TypedDrawer.Of(type));
         }
 
@@ -85,14 +85,14 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             int lastPriority = int.MinValue;
             Type drawerType = null;
             try {
-                foreach(var kv in typedDrawers)
-                    if(kv.targetType.IsAssignableFrom(targetType) && kv.priority > lastPriority) {
+                foreach (var kv in typedDrawers)
+                    if (kv.targetType.IsAssignableFrom(targetType) && kv.priority > lastPriority) {
                         drawerType = kv.drawerType;
                         lastPriority = kv.priority;
                     }
-                if(drawerType != null)
+                if (drawerType != null)
                     return Activator.CreateInstance(drawerType, target, targetType, shown, showProps, showPrivateFields, showObsolete, showMethods) as InspectorDrawer;
-            } catch(Exception ex) {
+            } catch (Exception ex) {
                 Debug.LogException(ex);
                 Debug.LogWarning($"Failed to instaniate drawer {drawerType.Name}, will fall back to default drawer.");
             }
@@ -102,35 +102,35 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public InspectorDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
             this.target = target;
             BindingFlags flag = BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy;
-            if(!target.IsInvalid())
+            if (!target.IsInvalid())
                 flag |= BindingFlags.Instance;
-            if(allowPrivate = showPrivateFields)
+            if (allowPrivate = showPrivateFields)
                 flag |= BindingFlags.NonPublic;
             this.targetType = targetType;
             var fields = targetType.GetFields(flag);
             var props = showProps ? targetType.GetProperties(flag).Where(prop => prop.GetIndexParameters().Length == 0).ToArray() : null;
-            foreach(var field in fields)
+            foreach (var field in fields)
                 try {
-                    if(!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
+                    if (!showObsolete && Attribute.IsDefined(field, typeof(ObsoleteAttribute)))
                         continue;
                     drawer.Add(new MethodPropertyDrawer(field, target, showPrivateFields, showObsolete) {
                         AllowReferenceMode = false
                     });
-                } catch(Exception ex) {
+                } catch (Exception ex) {
                     Debug.LogException(ex);
                 }
-            if(showProps) {
-                if(!Helper.blackListedTypes.TryGetValue(targetType, out var blacklistedType)) {
+            if (showProps) {
+                if (!Helper.blackListedTypes.TryGetValue(targetType, out var blacklistedType)) {
                     Helper.blackListedTypes.Add(targetType, blacklistedType = new HashSet<string>());
-                    foreach(var kvp in Helper.blackListedTypes)
-                        if(kvp.Key.IsAssignableFrom(targetType))
+                    foreach (var kvp in Helper.blackListedTypes)
+                        if (kvp.Key.IsAssignableFrom(targetType))
                             blacklistedType.UnionWith(kvp.Value);
                 }
-                foreach(var prop in props)
+                foreach (var prop in props)
                     try {
-                        if(blacklistedType != null && blacklistedType.Contains(prop.Name))
+                        if (blacklistedType != null && blacklistedType.Contains(prop.Name))
                             continue;
-                        if(!showObsolete && Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
+                        if (!showObsolete && Attribute.IsDefined(prop, typeof(ObsoleteAttribute)))
                             continue;
                         bool isInternalType = prop.DeclaringType.IsInternalType();
                         drawer.Add(new MethodPropertyDrawer(prop, target, showPrivateFields, showObsolete, prop.CanRead && EditorApplication.isPlaying) {
@@ -138,15 +138,15 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                             Updatable = isInternalType || Helper.GetState(prop, false),
                             ShowUpdatable = !isInternalType
                         });
-                    } catch(Exception ex) {
+                    } catch (Exception ex) {
                         Debug.LogException(ex);
                     }
             }
-            if(allowMethods = showMethods)
+            if (allowMethods = showMethods)
                 AddMethodMenu();
-            foreach(var d in drawer)
+            foreach (var d in drawer)
                 d.OnRequireRedraw += RequireRedraw;
-            if(!target.IsInvalid())
+            if (!target.IsInvalid())
                 this.shown = Helper.GetState(target, shown);
         }
 
@@ -160,11 +160,11 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         public void Draw(bool drawHeader = true, bool readOnly = false) {
-            if(drawHeader) {
+            if (drawHeader) {
                 shown = EditorGUILayout.InspectorTitlebar(shown, target as UnityObject);
-                if(!target.IsInvalid())
+                if (!target.IsInvalid())
                     Helper.StoreState(target, shown);
-                if(!shown)
+                if (!shown)
                     return;
             }
             EditorGUI.indentLevel++;
@@ -173,9 +173,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             Draw(readOnly);
             EditorGUILayout.EndVertical();
             EditorGUI.indentLevel--;
-            if(removingDrawers.Count > 0) {
-                foreach(var drawer in removingDrawers)
-                    if(drawer is IDisposable disposable)
+            if (removingDrawers.Count > 0) {
+                foreach (var drawer in removingDrawers)
+                    if (drawer is IDisposable disposable)
                         disposable.Dispose();
                 drawer.RemoveAll(removingDrawers.Contains);
                 removingDrawers.Clear();
@@ -183,8 +183,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         protected virtual void Draw(bool readOnly) {
-            foreach(var item in drawer) {
-                if(item is ComponentMethodDrawer methodDrawer) {
+            foreach (var item in drawer) {
+                if (item is ComponentMethodDrawer methodDrawer) {
                     EditorGUI.indentLevel--;
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
@@ -194,20 +194,20 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                     EditorGUILayout.EndVertical();
                     EditorGUILayout.EndHorizontal();
                     EditorGUI.indentLevel++;
-                } else if(item != null) {
-                    if(item.Info != null && !string.IsNullOrEmpty(searchText) && item.Info.Name.IndexOf(searchText, StringComparison.CurrentCultureIgnoreCase) < 0)
+                } else if (item != null) {
+                    if (item.Info != null && !string.IsNullOrEmpty(searchText) && item.Info.Name.IndexOf(searchText, StringComparison.CurrentCultureIgnoreCase) < 0)
                         continue;
-                    if(item is MethodPropertyDrawer fieldDrawer)
+                    if (item is MethodPropertyDrawer fieldDrawer)
                         fieldDrawer.Draw(readOnly);
                     else
                         item.Draw();
                     changed |= item.UpdateIfChanged();
                 }
             }
-            if(allowMethods) {
+            if (allowMethods) {
                 GUILayout.BeginHorizontal();
                 GUILayout.FlexibleSpace();
-                if(GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Plus", "Add Method / Index Properties Watcher"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Plus", "Add Method / Index Properties Watcher"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
                     AddMethodMenu();
                 GUILayout.EndHorizontal();
             }
@@ -215,37 +215,37 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         private void DrawRequestRefs() {
             MethodPropertyDrawer removal = null;
-            foreach(var drawer in MethodPropertyDrawer.drawerRequestingReferences)
-                if(drawer.requiredType.IsAssignableFrom(targetType) &&
+            foreach (var drawer in MethodPropertyDrawer.drawerRequestingReferences)
+                if (drawer.requiredType.IsAssignableFrom(targetType) &&
                     GUILayout.Button($"Assign this object to {drawer.name}")) {
                     drawer.Value = target;
                     drawer.SetDirty();
                     removal = drawer;
                 }
-            if(removal != null) MethodPropertyDrawer.drawerRequestingReferences.Remove(removal);
+            if (removal != null) MethodPropertyDrawer.drawerRequestingReferences.Remove(removal);
         }
 
         public virtual void UpdateValues(bool updateProps) {
-            if(target.IsInvalid()) return;
-            foreach(var drawerItem in drawer) {
-                if(!(drawerItem is MethodPropertyDrawer propDrawer))
+            if (target.IsInvalid()) return;
+            foreach (var drawerItem in drawer) {
+                if (!(drawerItem is MethodPropertyDrawer propDrawer))
                     continue;
                 var isPropInfo = propDrawer.Info is PropertyInfo;
-                if(!propDrawer.Info.DeclaringType.IsInternalType() && (!updateProps || !propDrawer.Updatable) && isPropInfo)
+                if (!propDrawer.Info.DeclaringType.IsInternalType() && (!updateProps || !propDrawer.Updatable) && isPropInfo)
                     continue;
                 propDrawer.UpdateValue();
             }
         }
 
         public virtual void Dispose() {
-            foreach(var d in drawer)
-                if(d is IDisposable disposable)
+            foreach (var d in drawer)
+                if (d is IDisposable disposable)
                     disposable.Dispose();
             drawer.Clear();
         }
 
         protected void RequireRedraw() {
-            if(!target.IsInvalid() && OnRequireRedraw != null)
+            if (!target.IsInvalid() && OnRequireRedraw != null)
                 OnRequireRedraw();
         }
     }

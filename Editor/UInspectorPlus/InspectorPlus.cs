@@ -44,7 +44,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private static void TypeSelected(Type type) => InspectorChildWindow.OpenStatic(type, true, true, true, true, false, null);
 
         private void Initialize() {
-            if(initialized) return;
+            if (initialized) return;
             autoUpdateValues = EditorPrefs.GetBool("inspectorplus_autoupdate", true);
             privateFields = EditorPrefs.GetBool("inspectorplus_private", true);
             forceUpdateProps = EditorPrefs.GetBool("inspectorplus_editupdate", false);
@@ -63,28 +63,28 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             GUI.changed = false;
             GUILayout.Space(8);
             searchText = Helper.ToolbarSearchField(searchText ?? string.Empty, searchModes, ref searchMode);
-            if(GUI.changed)
+            if (GUI.changed)
                 UpdateSearchMode();
             GUILayout.Space(8);
             EditorGUI.BeginDisabledGroup(instanceIds == null || instanceIds.Length == 0 || searchMode != 0);
-            if(GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash", "Destroy Selection"),
+            if (GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash", "Destroy Selection"),
                 EditorStyles.toolbarButton, GUILayout.ExpandWidth(false)))
                 DestroyAll();
             EditorGUI.EndDisabledGroup();
             GUILayout.EndHorizontal();
             GUI.changed = false;
             scrollPos = GUILayout.BeginScrollView(scrollPos);
-            if(!warningDismissed) {
+            if (!warningDismissed) {
                 EditorGUILayout.HelpBox(description, MessageType.Warning);
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.FlexibleSpace();
-                if(GUILayout.Button("Dismiss", EditorStyles.miniButton, GUILayout.ExpandWidth(false)))
+                if (GUILayout.Button("Dismiss", EditorStyles.miniButton, GUILayout.ExpandWidth(false)))
                     warningDismissed = true;
                 EditorGUILayout.EndHorizontal();
             }
-            switch(searchMode) {
+            switch (searchMode) {
                 case 0:
-                    foreach(var drawer in drawers.SelectMany(drawer => drawer)) {
+                    foreach (var drawer in drawers.SelectMany(drawer => drawer)) {
                         drawer.searchText = searchText;
                         drawer.Draw();
                     }
@@ -100,7 +100,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void OnInspectorUpdate() {
-            if(!autoUpdateValues || EditorGUIUtility.editingTextField)
+            if (!autoUpdateValues || EditorGUIUtility.editingTextField)
                 return;
             UpdateValues();
         }
@@ -109,18 +109,18 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             EditorGUI.BeginDisabledGroup(searchMode != 0);
             EditorGUI.BeginChangeCheck();
             GUI.Toggle(rect, locked && searchMode == 0, GUIContent.none, Helper.GetGUIStyle("IN LockButton"));
-            if(EditorGUI.EndChangeCheck())
+            if (EditorGUI.EndChangeCheck())
                 TriggerLock();
             EditorGUI.EndDisabledGroup();
         }
 
         void IHasCustomMenu.AddItemsToMenu(GenericMenu menu) {
-            for(int i = 0; i < searchModes.Length; i++)
+            for (int i = 0; i < searchModes.Length; i++)
                 menu.AddItem(new GUIContent(searchModes[i]), searchMode == i, UpdateSearchMode, i);
-            if(searchMode != 0) return;
+            if (searchMode != 0) return;
             menu.AddSeparator("");
             menu.AddItem(new GUIContent("Refresh"), false, RefreshList);
-            if(autoUpdateValues)
+            if (autoUpdateValues)
                 menu.AddDisabledItem(new GUIContent("Update Values", "Auto Updating"));
             else
                 menu.AddItem(new GUIContent("Update Values"), false, UpdateValues);
@@ -161,16 +161,16 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void RefreshList() {
-            foreach(var drawer in drawers) foreach(var d in drawer) d.Dispose();
+            foreach (var drawer in drawers) foreach (var d in drawer) d.Dispose();
             drawers.Clear();
             OnSelectionChange();
         }
 
         private void TriggerLock() {
-            if(!locked && Selection.activeObject == null)
+            if (!locked && Selection.activeObject == null)
                 return;
             locked = !locked;
-            if(!locked)
+            if (!locked)
                 OnSelectionChange();
             EditorPrefs.SetBool("inspectorplus_lock", locked);
         }
@@ -189,47 +189,47 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private void OnSelectionChange() => CheckSelection();
 
         private void CheckSelection(bool callFromUpdate = false) {
-            if(!locked)
+            if (!locked)
                 instanceIds = Selection.instanceIDs;
             var pendingRemoveDrawers = new List<InspectorDrawer[]>();
             var pendingAddDrawers = new List<InspectorDrawer[]>();
-            foreach(var drawer in drawers)
-                if(drawer.Length <= 0 || drawer[0].target.IsInvalid() || !instanceIds.Contains(drawer[0].target.ObjIdOrHashCode())) {
+            foreach (var drawer in drawers)
+                if (drawer.Length <= 0 || drawer[0].target.IsInvalid() || !instanceIds.Contains(drawer[0].target.ObjIdOrHashCode())) {
                     pendingRemoveDrawers.Add(drawer);
-                    foreach(var d in drawer) d.Dispose();
+                    foreach (var d in drawer) d.Dispose();
                 }
             drawers.RemoveAll(pendingRemoveDrawers.Contains);
-            foreach(var instanceID in instanceIds)
-                if(drawers.FindIndex(drawer => drawer[0].target.ObjIdOrHashCode() == instanceID) < 0)
+            foreach (var instanceID in instanceIds)
+                if (drawers.FindIndex(drawer => drawer[0].target.ObjIdOrHashCode() == instanceID) < 0)
                     pendingAddDrawers.Add(CreateDrawers(instanceID));
             drawers.AddRange(pendingAddDrawers);
-            if(!callFromUpdate)
+            if (!callFromUpdate)
                 UpdateValues();
         }
 
         private InspectorDrawer[] CreateDrawers(int instanceID) {
             var target = EditorUtility.InstanceIDToObject(instanceID);
-            if(target.IsInvalid())
+            if (target.IsInvalid())
                 return new InspectorDrawer[0];
             var ret = new List<InspectorDrawer>();
             try {
                 ret.Add(CreateDrawer(target, true));
-            } catch(Exception ex) {
+            } catch (Exception ex) {
                 Debug.LogException(ex);
             }
-            if(target is GameObject gameObject)
-                foreach(var component in gameObject.GetComponents(typeof(Component))) {
+            if (target is GameObject gameObject)
+                foreach (var component in gameObject.GetComponents(typeof(Component))) {
                     try {
                         ret.Add(CreateDrawer(component, false));
-                    } catch(Exception ex) {
+                    } catch (Exception ex) {
                         Debug.LogException(ex);
                     }
                 }
-            if(target is AnimatorState animatorState)
-                foreach(var animBeahvior in animatorState.behaviours) {
+            if (target is AnimatorState animatorState)
+                foreach (var animBeahvior in animatorState.behaviours) {
                     try {
                         ret.Add(CreateDrawer(animBeahvior, false));
-                    } catch(Exception ex) {
+                    } catch (Exception ex) {
                         Debug.LogException(ex);
                     }
                 }
@@ -243,26 +243,26 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void IterateDrawers<T>(Action<T> each) where T : IReflectorDrawer {
-            foreach(var methodDrawer in drawers.SelectMany(drawer => drawer).SelectMany(drawer => drawer.drawer).OfType<T>())
+            foreach (var methodDrawer in drawers.SelectMany(drawer => drawer).SelectMany(drawer => drawer.drawer).OfType<T>())
                 each(methodDrawer);
         }
 
         private void UpdateValues() => UpdateValues(forceUpdateProps || EditorApplication.isPlaying);
 
         private void UpdateValues(bool updateProps) {
-            for(int i = 0; i < drawers.Count; i++) {
+            for (int i = 0; i < drawers.Count; i++) {
                 var drawerGroup = drawers[i];
-                if(drawerGroup.Length == 0 || drawerGroup[0].target.IsInvalid()) {
+                if (drawerGroup.Length == 0 || drawerGroup[0].target.IsInvalid()) {
                     CheckSelection(true);
                     break;
                 }
                 int instanceID = drawerGroup[0].target.ObjIdOrHashCode();
-                for(int j = 0; j < drawerGroup.Length; j++) {
-                    if(drawerGroup[j].target.IsInvalid()) {
+                for (int j = 0; j < drawerGroup.Length; j++) {
+                    if (drawerGroup[j].target.IsInvalid()) {
                         drawers[i] = CreateDrawers(instanceID);
                         break;
                     }
-                    if(drawerGroup[j].shown)
+                    if (drawerGroup[j].shown)
                         drawerGroup[j].UpdateValues(updateProps);
                 }
             }
@@ -271,17 +271,17 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         private void DestroyAll() {
             int[] instanceIds = this.instanceIds;
-            if(instanceIds == null || instanceIds.Length == 0)
+            if (instanceIds == null || instanceIds.Length == 0)
                 return;
             bool deleteAll = false, showError = true;
             var remainObjects = new HashSet<int>(instanceIds);
-            foreach(int id in instanceIds) {
+            foreach (int id in instanceIds) {
                 try {
                     UnityObject obj = EditorUtility.InstanceIDToObject(id);
-                    if(obj == null) continue;
+                    if (obj == null) continue;
                     bool deleteThis = deleteAll;
-                    if(!deleteAll)
-                        switch(EditorUtility.DisplayDialogComplex(
+                    if (!deleteAll)
+                        switch (EditorUtility.DisplayDialogComplex(
                             "Destroy object",
                             $"Destroy {obj.GetType()} {obj.name} (Instance ID: {id})?",
                             "Yes", "No", "Yes to all"
@@ -294,14 +294,14 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                                     break;
                                 }
                         }
-                    if(deleteThis) {
+                    if (deleteThis) {
                         DestroyImmediate(obj);
                         remainObjects.Remove(id);
                     }
-                } catch(Exception ex) {
+                } catch (Exception ex) {
                     Debug.LogException(ex);
-                    if(showError)
-                        switch(EditorUtility.DisplayDialogComplex(
+                    if (showError)
+                        switch (EditorUtility.DisplayDialogComplex(
                             $"Error while destroying object {id}",
                             ex.Message,
                             "Continue", "Stop", "Don't show again"
@@ -313,7 +313,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 }
             }
             int[] nextInstanceIds = this.instanceIds;
-            if(nextInstanceIds.Length != remainObjects.Count)
+            if (nextInstanceIds.Length != remainObjects.Count)
                 this.instanceIds = nextInstanceIds = new int[remainObjects.Count];
             remainObjects.CopyTo(nextInstanceIds);
             Selection.instanceIDs = this.instanceIds;

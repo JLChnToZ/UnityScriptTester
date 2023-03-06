@@ -14,7 +14,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         public float Height {
             get {
-                if(target == null) return 0;
+                if (target == null) return 0;
                 return (target.Length + columns) / columns * (EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing);
             }
         }
@@ -24,7 +24,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         protected override void Draw(bool readOnly) {
-            if(target != null)
+            if (target != null)
                 Draw(EditorGUILayout.GetControlRect(
                     false, Height, GUILayout.MinHeight(EditorGUIUtility.singleLineHeight * 3), GUILayout.ExpandHeight(true)
                 ));
@@ -35,7 +35,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private void Draw(Rect viewport) {
             float height = EditorGUIUtility.singleLineHeight;
             float padHeight = height + EditorGUIUtility.standardVerticalSpacing;
-            if(target != null) {
+            if (target != null) {
                 temp.text = target.Length.ToString("X8");
                 Vector2 labelSize = GUI.skin.label.CalcSize(temp);
                 Rect contentRect = new Rect(0, 0, labelSize.x + (columns * 1.7F + 2) * height, Height);
@@ -43,10 +43,10 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 scrollPos = GUI.BeginScrollView(viewport, scrollPos, contentRect);
                 bool changed = GUI.changed;
                 GUI.changed = false;
-                for(int start = Mathf.FloorToInt(scrollPos.y / padHeight) * columns,
+                for (int start = Mathf.FloorToInt(scrollPos.y / padHeight) * columns,
                     end = Math.Min(target.Length, start + Mathf.CeilToInt(viewport.height / padHeight) * columns),
                     col = start; col < end; col++) {
-                    if(col % columns == 0) {
+                    if (col % columns == 0) {
                         temp.text = col.ToString("X8");
                         GUI.Label(new Rect(0, col / columns * padHeight, labelSize.x, labelSize.y), temp);
                     }
@@ -59,11 +59,11 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                         target[col].ToString("X2"),
                         2, GUI.skin.label
                     );
-                    if(GUI.changed) {
+                    if (GUI.changed) {
                         GUI.changed = false;
                         changed = true;
                         int val;
-                        if(int.TryParse(newValue, NumberStyles.HexNumber, null, out val))
+                        if (int.TryParse(newValue, NumberStyles.HexNumber, null, out val))
                             target[col] = unchecked((byte)val);
                     }
                     string newStr = GUI.TextField(
@@ -75,7 +75,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                         Byte2String(target[col]),
                         1, GUI.skin.label
                     );
-                    if(GUI.changed) {
+                    if (GUI.changed) {
                         GUI.changed = false;
                         changed = true;
                         target[col] = newStr.Length > 0 ? unchecked((byte)newStr[0]) : (byte)0;
@@ -87,9 +87,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private static string Byte2String(byte b) {
-            if(b < 32) return ((char)(b | 0x2400)).ToString();
-            if(b == 127) return ((char)0x2421).ToString();
-            if(b > 127) return ".";
+            if (b < 32) return ((char)(b | 0x2400)).ToString();
+            if (b == 127) return ((char)0x2421).ToString();
+            if (b > 127) return ".";
             return ((char)b).ToString();
         }
     }

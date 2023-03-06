@@ -80,6 +80,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             : this() {
             component = target;
             targetType = type ?? target.GetType();
+            if (target == null) ctorType = type;
             drawHeader = false;
             showMethodSelector.value = true;
             InitComponentMethods();
@@ -97,7 +98,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public string Filter {
             get { return filter; }
             set {
-                if(filter == value) return;
+                if (filter == value) return;
                 filter = value;
                 InitComponentMethods(false);
             }
@@ -105,21 +106,23 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         public void Call() {
             var member = resolvedMember ?? selectedMember;
-            if(member == null || parameters == null)
+            if (member == null || parameters == null)
                 return;
-            switch(mode) {
-                case MethodMode.Constructor: if(ctorType == null) return; break;
-                case MethodMode.Method: if(component == null && member.IsInstanceMember()) return; break;
-                default: if(component == null) return; break;
+            switch (mode) {
+                case MethodMode.Constructor: if (ctorType == null) return; break;
+                case MethodMode.Method: if (component == null && member.IsInstanceMember()) return; break;
+                default: if (component == null) return; break;
             }
             try {
                 thrownException = null;
                 var requestData = Array.ConvertAll(parameters, d => d.Value);
                 object returnData;
-                switch(mode) {
+                switch (mode) {
                     case MethodMode.Constructor:
                         returnData = (member as ConstructorInfo).Invoke(requestData);
-                        result = new MethodPropertyDrawer(
+                        result = (member as ConstructorInfo).IsStatic ?
+                        null :
+                        new MethodPropertyDrawer(
                             member.ReflectedType,
                             "Constructed object",
                             returnData,
@@ -148,12 +151,12 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                             obsolete);
                         break;
                 }
-                for(int i = 0, l = Math.Min(parameters.Length, requestData.Length); i < l; i++) {
+                for (int i = 0, l = Math.Min(parameters.Length, requestData.Length); i < l; i++) {
                     parameters[i].Value = requestData[i];
-                    if(parameters[i].ReferenceMode)
+                    if (parameters[i].ReferenceMode)
                         Helper.AssignValue(parameters[i].RefFieldInfo, parameters[i].Component, requestData[i]);
                 }
-            } catch(Exception ex) {
+            } catch (Exception ex) {
                 thrownException = ex.InnerException ?? ex;
                 Debug.LogException(thrownException);
                 throw;
@@ -161,125 +164,132 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         public void Draw() {
-            if(drawHeader) {
+            if (drawHeader) {
                 titleFolded = EditorGUILayout.InspectorTitlebar(titleFolded, component as UnityObject);
             }
             GUI.changed = false;
-            if(titleFolded || !drawHeader) {
-                if(drawHeader) {
+            if (titleFolded || !drawHeader) {
+                if (drawHeader) {
                     EditorGUI.indentLevel++;
                     EditorGUILayout.BeginVertical();
                     component = EditorGUILayout.ObjectField("Target", component as UnityObject, typeof(UnityObject), true);
                 }
-                if(mode != MethodMode.Indexer || result == null)
+                if (mode != MethodMode.Indexer || result == null)
                     EditorGUILayout.Space();
-                if(mode == MethodMode.Constructor ||
+                if (mode == MethodMode.Constructor ||
                     (mode == MethodMode.Method && (component != null || !selectedMember.IsInstanceMember())) ||
                     (mode == MethodMode.Indexer && component != null && result == null)) {
-                    if(GUI.changed) {
+                    if (GUI.changed) {
                         InitComponentMethods();
                         GUI.changed = false;
                     }
                     showMethodSelector.target = true;
                 } else
                     showMethodSelector.target = false;
-                if(EditorGUILayout.BeginFadeGroup(showMethodSelector.faded))
+                if (EditorGUILayout.BeginFadeGroup(showMethodSelector.faded))
                     DrawComponent();
                 EditorGUILayout.EndFadeGroup();
-                showResultSelector.target = (mode != MethodMode.Constructor && result != null) || thrownException != null;
-                if(EditorGUILayout.BeginFadeGroup(showResultSelector.faded))
+                showResultSelector.target = result != null || thrownException != null;
+                if (EditorGUILayout.BeginFadeGroup(showResultSelector.faded))
                     DrawResult();
                 EditorGUILayout.EndFadeGroup();
-                if(drawHeader) {
+                if (drawHeader) {
                     EditorGUILayout.EndVertical();
                     EditorGUI.indentLevel--;
                 }
-                if(execButton)
+                if (execButton)
                     DrawExecButton();
             }
         }
 
         public bool UpdateIfChanged() {
-            if(mode == MethodMode.Indexer && result != null)
+            if (mode == MethodMode.Indexer && result != null)
                 return result.UpdateIfChanged();
             return false;
         }
 
         public bool UpdateValue() {
-            if(mode == MethodMode.Indexer && result != null)
+            if (mode == MethodMode.Indexer && result != null)
                 return result.UpdateValue();
             return false;
         }
 
         public void Dispose() {
-            if(parameters != null)
-                foreach(var parameter in parameters)
+            if (parameters != null)
+                foreach (var parameter in parameters)
                     parameter.Dispose();
             result?.Dispose();
         }
 
-        private bool FilterMemberInfo(MemberInfo m) {
-            return (obsolete || !Attribute.IsDefined(m, typeof(ObsoleteAttribute))) &&
-                (string.IsNullOrEmpty(filter) ||
-                m.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0);
-        }
+        private bool FilterMemberInfo(MemberInfo m) =>
+            (obsolete || !Attribute.IsDefined(m, typeof(ObsoleteAttribute))) &&
+            (string.IsNullOrEmpty(filter) ||
+            m.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0);
 
         private void AddComponentMethod(Type type) {
             BindingFlags flag = BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy;
-            if(component != null)
+            if (component != null)
                 flag |= BindingFlags.Instance;
-            if(privateFields)
+            if (privateFields)
                 flag |= BindingFlags.NonPublic;
-            methods.AddRange(
-                from m in type.GetConstructors(flag)
-                where FilterMemberInfo(m)
-                select new ComponentMethod {
-                    member = m,
-                    mode = MethodMode.Constructor,
-                }
-            );
-            flag &= ~BindingFlags.Instance;
-            methods.AddRange(
-                from m in type.GetMethods(flag)
-                where FilterMemberInfo(m) && m.ReturnType == type
-                select new ComponentMethod {
-                    member = m,
-                    mode = MethodMode.Method,
-                }
-            );
+            AddConstructors(type, flag);
+            AddMethods(type, flag & ~BindingFlags.Instance);
         }
 
         private void AddComponentMethod(object target, Type type = null) {
             BindingFlags flag = BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy;
-            if(privateFields)
+            if (privateFields)
                 flag |= BindingFlags.NonPublic;
-            if(target != null)
+            if (target != null)
                 flag |= BindingFlags.Instance;
-            if(type == null)
+            if (type == null)
                 type = target.GetType();
-            methods.AddRange(
-                from m in type.GetProperties(flag)
-                where FilterMemberInfo(m) && m.GetIndexParameters().Length > 0
-                select new ComponentMethod {
-                    member = m,
-                    target = target,
-                    mode = MethodMode.Indexer,
-                }
-            );
-            methods.AddRange(
-                from m in type.GetMethods(flag)
-                where FilterMemberInfo(m)
-                select new ComponentMethod {
-                    member = m,
-                    target = target,
-                    mode = MethodMode.Method,
-                }
-            );
+            if (target == null) AddConstructors(type, flag | BindingFlags.Instance);
+            AddIndexers(type, target, flag);
+            AddMethods(type, target, flag);
         }
+
+        private void AddMethods(Type type, BindingFlags flag) => methods.AddRange(
+            from m in type.GetMethods(flag)
+            where FilterMemberInfo(m) && m.ReturnType == type
+            select new ComponentMethod {
+                member = m,
+                mode = MethodMode.Method,
+            }
+        );
+
+        private void AddMethods(Type type, object target, BindingFlags flag) => methods.AddRange(
+            from m in type.GetMethods(flag)
+            where FilterMemberInfo(m)
+            select new ComponentMethod {
+                member = m,
+                target = target,
+                mode = MethodMode.Method,
+            }
+        );
+
+        private void AddIndexers(Type type, object target, BindingFlags flag) => methods.AddRange(
+            from m in type.GetProperties(flag)
+            where FilterMemberInfo(m) && m.GetIndexParameters().Length > 0
+            select new ComponentMethod {
+                member = m,
+                target = target,
+                mode = MethodMode.Indexer,
+            }
+        );
+
+        private void AddConstructors(Type type, BindingFlags flag) => methods.AddRange(
+            from m in type.GetConstructors(flag)
+            where FilterMemberInfo(m)
+            select new ComponentMethod {
+                member = m,
+                mode = MethodMode.Constructor,
+            }
+        );
 
         private void InitComponentMethods(bool resetIndex = true) {
             methods.Clear();
-            switch(mode) {
+            switch (mode) {
                 case MethodMode.Constructor:
                     AddComponentMethod(ctorType);
                     methodNames = methods.Select((m, i) => GetMethodNameFormatted(m, i)).ToArray();
@@ -288,18 +298,18 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                     AddComponentMethod(component, targetType);
                     break;
             }
-            if(drawHeader) {
+            if (drawHeader) {
                 var gameObject = component as GameObject;
-                if(gameObject != null)
-                    foreach(var c in gameObject.GetComponents(typeof(Component)))
+                if (gameObject != null)
+                    foreach (var c in gameObject.GetComponents(typeof(Component)))
                         AddComponentMethod(c);
                 methodNames = methods.Select((m, i) => $"{m.target.GetType().Name} ({m.target.ObjIdOrHashCode()})/{GetMethodNameFormatted(m, i)}").ToArray();
             } else {
                 methodNames = methods.Select((m, i) => GetMethodNameFormatted(m, i)).ToArray();
             }
-            if(!resetIndex && selectedMember != null) {
+            if (!resetIndex && selectedMember != null) {
                 selectedMethodIndex = methods.FindIndex(m => m.member == selectedMember);
-                if(selectedMethodIndex >= 0)
+                if (selectedMethodIndex >= 0)
                     return;
             }
             selectedMethodIndex = -1;
@@ -313,19 +323,17 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private string GetMethodNameFormatted(ComponentMethod m, int i) {
             string name, formatStr;
             ParameterInfo[] parameters;
-            switch(m.mode) {
-                case MethodMode.Constructor:
-                    name = "[[Constructor]]";
-                    break;
+            switch (m.mode) {
                 case MethodMode.Indexer:
                     name = null;
                     break;
+                case MethodMode.Constructor:
                 case MethodMode.Method:
                 default:
                     name = m.member.GetMemberName().Replace('_', ' ');
                     break;
             }
-            switch(m.mode) {
+            switch (m.mode) {
                 case MethodMode.Indexer:
                     parameters = (m.member as PropertyInfo).GetIndexParameters();
                     formatStr = "[{1}]";
@@ -342,13 +350,14 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         private void InitMethodParams() {
             selectedMember = methods[selectedMethodIndex].member;
-            switch(mode = methods[selectedMethodIndex].mode) {
+            switch (mode = methods[selectedMethodIndex].mode) {
                 case MethodMode.Constructor:
                     component = null;
                     break;
                 case MethodMode.Indexer:
                     component = methods[selectedMethodIndex].target;
                     parameterInfo = (selectedMember as PropertyInfo).GetIndexParameters();
+                    paramsFolded = parameterInfo.Length > 0;
                     break;
                 case MethodMode.Method:
                 default:
@@ -357,10 +366,11 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             }
             typeResolver = null;
             resolvedMember = null;
-            if(selectedMember is MethodBase methodBase) {
+            if (selectedMember is MethodBase methodBase) {
                 parameterInfo = methodBase.GetParameters();
-                if(methodBase is MethodInfo method && method.ContainsGenericParameters)
+                if (methodBase is MethodInfo method && method.ContainsGenericParameters)
                     typeResolver = new TypeResolverGUI(method);
+                paramsFolded = parameterInfo.Length > 0;
             }
             CreateDrawers();
             result = null;
@@ -368,11 +378,11 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void CreateDrawers() {
-            if(parameters != null)
-                foreach(var entry in parameters)
+            if (parameters != null)
+                foreach (var entry in parameters)
                     entry?.Dispose();
             parameters = new MethodPropertyDrawer[parameterInfo.Length];
-            for(int i = 0; i < parameterInfo.Length; i++) {
+            for (int i = 0; i < parameterInfo.Length; i++) {
                 var info = parameterInfo[i];
                 parameters[i] = new MethodPropertyDrawer(info, privateFields, obsolete);
                 parameters[i].OnRequireRedraw += RequireRedraw;
@@ -380,63 +390,64 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void DrawComponent() {
-            if(OnClose != null)
+            if (OnClose != null)
                 EditorGUILayout.BeginHorizontal();
             selectedMethodIndex = EditorGUILayout.Popup(mode.ToString(), selectedMethodIndex, methodNames);
-            if(OnClose != null) {
-                if(GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Minus"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
+            if (OnClose != null) {
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Minus"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
                     OnClose();
                 EditorGUILayout.EndHorizontal();
             }
-            if(selectedMethodIndex >= 0) {
-                if(GUI.changed) {
+            if (selectedMethodIndex >= 0) {
+                if (GUI.changed) {
                     InitMethodParams();
                     GUI.changed = false;
                 }
                 showMethodOptions.target = true;
             } else
                 showMethodOptions.target = false;
-            if(EditorGUILayout.BeginFadeGroup(showMethodOptions.faded))
+            if (EditorGUILayout.BeginFadeGroup(showMethodOptions.faded))
                 DrawMethod();
             EditorGUILayout.EndFadeGroup();
         }
 
         private void DrawMethod() {
-            switch(mode) {
+            switch (mode) {
                 case MethodMode.Constructor:
-                    paramsFolded = EditorGUILayout.Foldout(paramsFolded, "Constructor");
+                    paramsFolded = EditorGUILayout.Foldout(paramsFolded, $"Constructor ({parameters.Length})");
                     break;
                 case MethodMode.Indexer:
-                    paramsFolded = EditorGUILayout.Foldout(paramsFolded, "Indexer");
+                    paramsFolded = EditorGUILayout.Foldout(paramsFolded, $"Indexer ({parameters.Length})");
                     break;
                 case MethodMode.Method:
                 default:
-                    paramsFolded = EditorGUILayout.Foldout(paramsFolded, selectedMember.Name);
+                    paramsFolded = EditorGUILayout.Foldout(paramsFolded, $"{selectedMember.Name} ({parameters.Length})");
                     break;
             }
-            if(paramsFolded) {
+            if (paramsFolded) {
                 GUI.changed = false;
                 EditorGUI.indentLevel++;
                 EditorGUILayout.BeginVertical();
-                if(mode != MethodMode.Indexer && typeResolver != null) {
+                if (mode != MethodMode.Indexer && typeResolver != null) {
                     typeResolver.Draw();
-                    if(GUILayout.Button("Resolve Generic Type"))
+                    if (GUILayout.Button("Resolve Generic Type"))
                         try {
                             resolvedMember = typeResolver.ResolvedMethod;
-                        } catch(Exception ex) {
+                        } catch (Exception ex) {
                             this.thrownException = ex;
                             resolvedMember = null;
                         } finally {
                             CreateDrawers();
                             result = null;
                             parameterInfo = ((resolvedMember ?? selectedMember) as MethodInfo)?.GetParameters();
+                            paramsFolded = parameterInfo.Length > 0;
                         }
                 }
-                if(mode != MethodMode.Indexer && component == null && selectedMember.IsInstanceMember())
+                if (mode != MethodMode.Indexer && component == null && selectedMember.IsInstanceMember())
                     EditorGUILayout.HelpBox("Method requires an exists instance.", MessageType.Warning);
-                if(parameterInfo.Length == 0)
+                if (parameterInfo.Length == 0)
                     EditorGUILayout.HelpBox("There is no parameters required for this method.", MessageType.Info);
-                foreach(var drawer in parameters)
+                foreach (var drawer in parameters)
                     drawer.Draw();
                 EditorGUILayout.EndVertical();
                 EditorGUI.indentLevel--;
@@ -444,24 +455,18 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void DrawResult() {
-            if(mode == MethodMode.Indexer) {
-                if(result != null)
+            if (mode == MethodMode.Indexer) {
+                if (result != null)
                     result.Draw(false);
-                if(thrownException != null)
+                if (thrownException != null)
                     EditorGUILayout.HelpBox(thrownException.Message, MessageType.Error);
-            } else if(resultFolded = EditorGUILayout.Foldout(resultFolded, "Result")) {
+            } else if (resultFolded = EditorGUILayout.Foldout(resultFolded, "Result")) {
                 GUI.changed = false;
                 EditorGUI.indentLevel++;
                 EditorGUILayout.BeginVertical();
-                switch(mode) {
-                    case MethodMode.Constructor: break;
-                    case MethodMode.Method:
-                    default:
-                        if(result != null)
-                            result.Draw(true);
-                        break;
-                }
-                if(thrownException != null)
+                if (result != null)
+                    result.Draw(true);
+                if (thrownException != null)
                     EditorGUILayout.HelpBox(thrownException.Message, MessageType.Error);
                 EditorGUILayout.EndVertical();
                 EditorGUI.indentLevel--;
@@ -469,15 +474,17 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void DrawExecButton() {
-            if(selectedMember == null) return;
+            if (selectedMember == null) return;
             EditorGUI.BeginDisabledGroup(typeResolver != null && !typeResolver.IsReady);
             bool execute;
-            switch(mode) {
+            switch (mode) {
                 case MethodMode.Constructor:
-                    execute = GUILayout.Button("Construct");
+                    execute = (selectedMember as MethodBase).IsStatic ?
+                        GUILayout.Button("Execute Static Constructor") :
+                        GUILayout.Button("Construct");
                     break;
                 case MethodMode.Indexer:
-                    if(result != null) return;
+                    if (result != null) return;
                     execute = GUILayout.Button("Create Property");
                     break;
                 case MethodMode.Method:
@@ -486,7 +493,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                     break;
             }
             EditorGUI.EndDisabledGroup();
-            if(execute)
+            if (execute)
                 Call();
         }
 

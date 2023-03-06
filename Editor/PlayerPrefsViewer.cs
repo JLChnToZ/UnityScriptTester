@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 namespace JLChnToZ.EditorExtensions.PlayerPrefsHelper {
-    public class PlayerPrefsViewer : EditorWindow {
+    public class PlayerPrefsViewer: EditorWindow {
         [SerializeField] PrefEntry[] entries;
         [SerializeField] bool autoSave = true;
         [SerializeField] bool autoRefresh = true;
@@ -111,15 +111,16 @@ namespace JLChnToZ.EditorExtensions.PlayerPrefsHelper {
             if (autoRefresh) Repaint();
         }
     }
-    
-    [Serializable] internal class PrefEntry : IEquatable<PrefEntry> {
+
+    [Serializable]
+    internal class PrefEntry: IEquatable<PrefEntry> {
         [SerializeField] bool isEditor;
         [SerializeField] string key;
         [SerializeField] FieldType type;
         object value;
         [SerializeField] bool expanded;
         public Exception lastException;
-    
+
         public string Key => key;
         public bool IsEditor => isEditor;
 
@@ -271,7 +272,7 @@ namespace JLChnToZ.EditorExtensions.PlayerPrefsHelper {
         public override string ToString() => $"{key} = {value}";
     }
 
-    internal enum FieldType : byte {
+    internal enum FieldType: byte {
         String = TypeCode.String,
         Integer = TypeCode.Int32,
         Float = TypeCode.Single,
