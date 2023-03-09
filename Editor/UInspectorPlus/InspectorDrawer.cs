@@ -218,8 +218,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             foreach (var drawer in MethodPropertyDrawer.drawerRequestingReferences)
                 if (drawer.requiredType.IsAssignableFrom(targetType) &&
                     GUILayout.Button($"Assign this object to {drawer.name}")) {
-                    drawer.Value = target;
-                    drawer.SetDirty();
+                    drawer.TryApplyValue(target);
                     removal = drawer;
                 }
             if (removal != null) MethodPropertyDrawer.drawerRequestingReferences.Remove(removal);

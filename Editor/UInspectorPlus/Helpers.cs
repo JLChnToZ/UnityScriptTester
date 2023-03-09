@@ -404,11 +404,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         internal static bool AssignValue(MemberInfo info, object target, object value, params object[] index) {
             try {
-                var fieldInfo = info as FieldInfo;
-                var propertyInfo = info as PropertyInfo;
-                if (fieldInfo != null && !fieldInfo.IsInitOnly && !fieldInfo.IsLiteral)
+                if (info is FieldInfo fieldInfo && !fieldInfo.IsInitOnly && !fieldInfo.IsLiteral)
                     fieldInfo.SetValue(target, value);
-                else if (propertyInfo != null && propertyInfo.CanWrite)
+                else if (info is PropertyInfo propertyInfo && propertyInfo.CanWrite)
                     propertyInfo.SetValue(target, value, index);
                 else
                     return false;
@@ -419,11 +417,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         internal static bool IsReadOnly(this MemberInfo info) {
-            var fieldInfo = info as FieldInfo;
-            if (fieldInfo != null)
+            if (info is FieldInfo fieldInfo)
                 return fieldInfo.IsInitOnly || fieldInfo.IsLiteral;
-            var propertyInfo = info as PropertyInfo;
-            if (propertyInfo != null)
+            if (info is PropertyInfo propertyInfo)
                 return !propertyInfo.CanWrite;
             return false;
         }
@@ -431,11 +427,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         internal static bool FetchValue(this MemberInfo info, object target, out object value, params object[] index) {
             value = null;
             try {
-                var fieldInfo = info as FieldInfo;
-                var propertyInfo = info as PropertyInfo;
-                if (fieldInfo != null)
+                if (info is FieldInfo fieldInfo)
                     value = fieldInfo.GetValue(target);
-                else if (propertyInfo != null && propertyInfo.CanRead)
+                else if (info is PropertyInfo propertyInfo && propertyInfo.CanRead)
                     value = propertyInfo.GetValue(target, index);
                 else
                     return false;
@@ -546,6 +540,16 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         [MenuItem("Window/JLChnToZ/Inspector+")]
         public static void ShowInspectorPlus() => EditorWindow.GetWindow(typeof(InspectorPlus));
+
+        [MenuItem("CONTEXT/Object/Open Inspector+...", false, int.MaxValue)]
+        public static void ShowInspectorPlus(MenuCommand command) => InspectorChildWindow.Open(
+            command.context,
+            EditorPrefs.GetBool("inspectorplus_props", true),
+            EditorPrefs.GetBool("inspectorplus_private", true),
+            EditorPrefs.GetBool("inspectorplus_obsolete", false),
+            EditorPrefs.GetBool("inspectorplus_methods", true),
+            true, null
+        );
 
         public static void PrintExceptionsWithInner(Exception ex) {
             do {

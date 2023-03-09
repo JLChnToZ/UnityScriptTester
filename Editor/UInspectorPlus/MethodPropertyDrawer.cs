@@ -366,6 +366,12 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public bool UpdateIfChanged() {
             if (!Changed)
                 return false;
+            return TryApplyValue(rawValue);
+        }
+
+        public bool TryApplyValue(object newValue) {
+            rawValue = newValue;
+            hasGetValue = true;
             if (Helper.AssignValue(memberInfo, target, Value, indexParams))
                 return true;
             UpdateValue();
@@ -445,8 +451,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                         GUI.Button(rect.Value, EditorGUIUtility.IconContent("Linked"), EditorStyles.miniLabel) :
                         GUILayout.Button(EditorGUIUtility.IconContent("Linked"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false))
                     ) {
-                        drawer.Value = rawValue;
-                        drawer.SetDirty();
+                        drawer.TryApplyValue(rawValue);
                         finishedDrawer = drawer;
                     }
                 }
@@ -768,9 +773,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                     case PropertyType.Unknown:
                     case PropertyType.Type:
                         menu.AddItem(new GUIContent("Mode/Construct"), grabValueMode == 2, GrabValueMode, 2);
-                        menu.AddItem(new GUIContent("Mode/From Opened Inspectors"), grabValueMode == 3, GrabValueMode, 3);
                         break;
                 }
+                menu.AddItem(new GUIContent("Mode/From Opened Inspectors"), grabValueMode == 3, GrabValueMode, 3);
             }
             if (currentType == PropertyType.Enum)
                 menu.AddItem(new GUIContent("Multiple Selection"), masked, ChangeMultiSelect, !masked);
