@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
+using UnityEditor.Experimental.GraphView;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -686,9 +687,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                         } else
                             buttonRect = Rect.zero;
                         if (GUI.Button(rect2, value is Type t ? $"T: {t.FullName}" : "<Null>", EditorStyles.textField) && !readOnly) {
-                            var typeMatcherPopup = new TypeMatcherPopup(null);
-                            typeMatcherPopup.OnSelected += type => rawValue = type;
-                            PopupWindow.Show(rect2, typeMatcherPopup);
+                            var typeMatcher = ScriptableObject.CreateInstance<TypeMatcher>();
+                            typeMatcher.OnSelected += type => rawValue = type;
+                            SearchWindow.Open(new SearchWindowContext(GUIUtility.GUIToScreenPoint(Event.current.mousePosition)), typeMatcher);
                         }
                         EditorGUI.EndDisabledGroup();
                         if (rect.HasValue)

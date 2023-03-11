@@ -12,7 +12,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             "Unless you know exactly what you are doing, do not use this plugin " +
             "or you may likely to corrupt your project or even crashes the editor!";
         private readonly List<InspectorDrawer[]> drawers = new List<InspectorDrawer[]>();
-        private readonly TypeMatcher typeMatcher = new TypeMatcher();
+        private TypeMatcher typeMatcher;
         private static readonly string[] searchModes = new[] { "Selected Component Members", "Types" };
         private static readonly string[] titles = new[] { "Inspector+", "Type Search" };
         private string searchText;
@@ -33,13 +33,14 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             titleContent = new GUIContent(titles[searchMode], EditorGUIUtility.FindTexture("UnityEditor.InspectorWindow"));
             Initialize();
             OnFocus();
+            typeMatcher = CreateInstance<TypeMatcher>();
             typeMatcher.OnRequestRedraw += Repaint;
             typeMatcher.OnSelected += TypeSelected;
         }
 
         private void OnDisable() => typeMatcher.OnRequestRedraw -= Repaint;
 
-        private void OnDestroy() => typeMatcher.Dispose();
+        private void OnDestroy() => DestroyImmediate(typeMatcher);
 
         private static void TypeSelected(Type type) => InspectorChildWindow.OpenStatic(type, true, true, true, true, false, null);
 
