@@ -304,7 +304,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 var temp = new Dictionary<object, List<SearchTreeEntry>>();
                 for (int i = 0; i < methods.Count; i++) {
                     ComponentMethod m = methods[i];
-                    temp.GetValueOrDefault(m.target).Add(
+                    temp.GetOrConstruct(m.target).Add(
                         new SearchTreeEntry(new GUIContent(GetMethodNameFormatted(m))) {
                             userData = i,
                             level = 2,
