@@ -33,14 +33,14 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             titleContent = new GUIContent(titles[searchMode], EditorGUIUtility.FindTexture("UnityEditor.InspectorWindow"));
             Initialize();
             OnFocus();
-            typeMatcher = CreateInstance<TypeMatcher>();
+            typeMatcher = new TypeMatcher();
             typeMatcher.OnRequestRedraw += Repaint;
             typeMatcher.OnSelected += TypeSelected;
         }
 
         private void OnDisable() => typeMatcher.OnRequestRedraw -= Repaint;
 
-        private void OnDestroy() => DestroyImmediate(typeMatcher);
+        private void OnDestroy() => typeMatcher?.Dispose();
 
         private static void TypeSelected(Type type) => InspectorChildWindow.OpenStatic(type, true, true, true, true, false, null);
 

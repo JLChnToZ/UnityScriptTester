@@ -142,8 +142,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                         Debug.LogException(ex);
                     }
             }
-            if (allowMethods = showMethods)
-                AddMethodMenu();
+            allowMethods = showMethods;
             foreach (var d in drawer)
                 d.OnRequireRedraw += RequireRedraw;
             if (!target.IsInvalid())
@@ -189,7 +188,6 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
                     EditorGUILayout.BeginVertical();
-                    methodDrawer.Filter = searchText;
                     methodDrawer.Draw();
                     EditorGUILayout.EndVertical();
                     EditorGUILayout.EndHorizontal();
@@ -207,8 +205,15 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             if (allowMethods) {
                 GUILayout.BeginHorizontal();
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Plus", "Add Method / Index Properties Watcher"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
-                    AddMethodMenu();
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Plus", "Add Method / Index Properties Watcher"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false))) {
+                    ComponentMethodDrawer newDrawer = null;
+                    newDrawer = new ComponentMethodDrawer(target, targetType) {
+                        AllowPrivateFields = allowPrivate,
+                        OnClose = () => removingDrawers.Add(newDrawer)
+                    };
+                    drawer.Add(newDrawer);
+                    newDrawer.ShowSearchPopup();
+                }
                 GUILayout.EndHorizontal();
             }
         }

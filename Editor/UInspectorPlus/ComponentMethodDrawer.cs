@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using UnityEditor.AnimatedValues;
+using UnityEditor.Experimental.GraphView;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +15,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private AnimBool showMethodOptions;
         private AnimBool showMethodSelector;
         private AnimBool showResultSelector;
-        private string[] methodNames;
+        private readonly List<SearchTreeEntry> methodNames = new List<SearchTreeEntry>();
         private int selectedMethodIndex;
         private MemberInfo selectedMember, resolvedMember;
         private ParameterInfo[] parameterInfo;
@@ -22,7 +23,6 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private TypeResolverGUI typeResolver;
         private MethodPropertyDrawer result;
         private Exception thrownException;
-        private string filter;
         private readonly Type ctorType, targetType;
         private bool titleFolded = true, paramsFolded = true, resultFolded = true,
             drawHeader = true, privateFields = true, obsolete = true;
@@ -93,15 +93,6 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             drawHeader = false;
             showMethodSelector.value = true;
             InitComponentMethods();
-        }
-
-        public string Filter {
-            get { return filter; }
-            set {
-                if (filter == value) return;
-                filter = value;
-                InitComponentMethods(false);
-            }
         }
 
         public void Call() {
@@ -214,6 +205,13 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             return false;
         }
 
+        public void ShowSearchPopup() => SearchWindowProvider.OpenSearchWindow(methodNames, i => {
+            selectedMethodIndex = (int)i;
+            InitMethodParams();
+            showMethodOptions.target = true;
+            RequireRedraw();
+        });
+
         public void Dispose() {
             if (parameters != null)
                 foreach (var parameter in parameters)
@@ -221,10 +219,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             result?.Dispose();
         }
 
-        private bool FilterMemberInfo(MemberInfo m) =>
-            (obsolete || !Attribute.IsDefined(m, typeof(ObsoleteAttribute))) &&
-            (string.IsNullOrEmpty(filter) ||
-            m.Name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0);
+        private bool FilterMemberInfo(MemberInfo m) => obsolete || !Attribute.IsDefined(m, typeof(ObsoleteAttribute));
 
         private void AddComponentMethod(Type type) {
             BindingFlags flag = BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy;
@@ -289,23 +284,41 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         private void InitComponentMethods(bool resetIndex = true) {
             methods.Clear();
+            methodNames.Clear();
             switch (mode) {
                 case MethodMode.Constructor:
                     AddComponentMethod(ctorType);
-                    methodNames = methods.Select((m, i) => GetMethodNameFormatted(m, i)).ToArray();
+                    methodNames.Add(new SearchTreeGroupEntry(new GUIContent("Constructors")));
+                    methodNames.AddRange(methods.Select((m, i) => new SearchTreeEntry(new GUIContent(GetMethodNameFormatted(m))) { userData = i, level = 1 } ));
                     break;
                 default:
                     AddComponentMethod(component, targetType);
                     break;
             }
+            methodNames.Add(new SearchTreeGroupEntry(new GUIContent("Methods")));
             if (drawHeader) {
                 var gameObject = component as GameObject;
                 if (gameObject != null)
                     foreach (var c in gameObject.GetComponents(typeof(Component)))
                         AddComponentMethod(c);
-                methodNames = methods.Select((m, i) => $"{m.target.GetType().Name} ({m.target.ObjIdOrHashCode()})/{GetMethodNameFormatted(m, i)}").ToArray();
+                var temp = new Dictionary<object, List<SearchTreeEntry>>();
+                for (int i = 0; i < methods.Count; i++) {
+                    ComponentMethod m = methods[i];
+                    temp.GetValueOrDefault(m.target).Add(
+                        new SearchTreeEntry(new GUIContent(GetMethodNameFormatted(m))) {
+                            userData = i,
+                            level = 2,
+                        }
+                    );
+                }
+                foreach (var kv in temp) {
+                    methodNames.Add(new SearchTreeGroupEntry(
+                        new GUIContent($"{kv.Key.GetType().Name} ({kv.Key.ObjIdOrHashCode()})"), 1
+                    ));
+                    methodNames.AddRange(kv.Value);
+                }
             } else {
-                methodNames = methods.Select((m, i) => GetMethodNameFormatted(m, i)).ToArray();
+                methodNames.AddRange(methods.Select((m, i) => new SearchTreeEntry(new GUIContent(GetMethodNameFormatted(m))) { userData = i, level = 1 } ));
             }
             if (!resetIndex && selectedMember != null) {
                 selectedMethodIndex = methods.FindIndex(m => m.member == selectedMember);
@@ -320,7 +333,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             thrownException = null;
         }
 
-        private string GetMethodNameFormatted(ComponentMethod m, int i) {
+        private string GetMethodNameFormatted(ComponentMethod m) {
             string name, formatStr;
             ParameterInfo[] parameters;
             switch (m.mode) {
@@ -392,7 +405,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private void DrawComponent() {
             if (OnClose != null)
                 EditorGUILayout.BeginHorizontal();
-            selectedMethodIndex = EditorGUILayout.Popup(mode.ToString(), selectedMethodIndex, methodNames);
+            EditorGUILayout.PrefixLabel(mode.ToString());
+            if (GUILayout.Button(selectedMethodIndex < 0 ? GUIContent.none : methodNames[selectedMethodIndex].content, EditorStyles.popup))
+                ShowSearchPopup();
             if (OnClose != null) {
                 if (GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Minus"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
                     OnClose();

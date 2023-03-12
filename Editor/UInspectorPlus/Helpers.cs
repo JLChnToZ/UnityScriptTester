@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using UnityObject = UnityEngine.Object;
+using UnityEditor.Experimental.GraphView;
 
 namespace JLChnToZ.EditorExtensions.UInspectorPlus {
     internal enum PropertyType {
@@ -556,6 +557,26 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 Debug.LogException(ex);
                 ex = ex.InnerException;
             } while (ex != null);
+        }
+    }
+
+    internal class SearchWindowProvider: ScriptableObject, ISearchWindowProvider {
+        List<SearchTreeEntry> entries;
+        Action<object> OnSelected;
+
+        public static bool OpenSearchWindow(List<SearchTreeEntry> entries, Action<object> onSelected, float width = 0, float height = 0) {
+            var provider = CreateInstance<SearchWindowProvider>();
+            provider.OnSelected = onSelected;
+            provider.entries = entries;
+            return SearchWindow.Open(new SearchWindowContext(GUIUtility.GUIToScreenPoint(Event.current.mousePosition), width, height), provider);
+        }
+
+        public List<SearchTreeEntry> CreateSearchTree(SearchWindowContext context) => entries;
+
+        public bool OnSelectEntry(SearchTreeEntry entry, SearchWindowContext context) {
+            OnSelected?.Invoke(entry.userData);
+            DestroyImmediate(this);
+            return true;
         }
     }
 }

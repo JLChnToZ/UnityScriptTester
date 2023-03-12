@@ -29,6 +29,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             new Thread(Init) { IsBackground = true }.Start();
         }
 
+        public static void Touch() {} // Ensure the class has instructed to initialize (Actual procedure is in static constructor)
+
         private NamespacedType(string name) {
             namespaceName = name;
             subNamespaces = new Dictionary<string, NamespacedType>();
@@ -90,7 +92,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
     }
 
-    internal class TypeMatcher: ScriptableObject, ISearchWindowProvider {
+    internal class TypeMatcher: IDisposable {
         public Thread bgWorker;
         public event Action OnRequestRedraw;
         public event Action<Type> OnSelected;
@@ -116,6 +118,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public int SearchResultCount => searchTypeResult?.Length ?? 0;
 
         public float Width => maxWidth;
+
+        static TypeMatcher() => NamespacedType.Touch();
 
         public void Draw() {
             if (searchTypeResult == null || searchTypeResult.Length == 0) return;
@@ -171,7 +175,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             if (OnRequestRedraw != null) OnRequestRedraw.Invoke();
         }
 
-        private void OnDestroy() {
+        public void Dispose() {
             try {
                 if (bgWorker != null && bgWorker.IsAlive)
                     bgWorker.Abort();
@@ -181,21 +185,13 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             }
         }
 
-        public List<SearchTreeEntry> CreateSearchTree(SearchWindowContext context) {
+        public bool ShowPopup() {
             var searchTreeEntries = new List<SearchTreeEntry> {
                 new SearchTreeGroupEntry(new GUIContent("Types")),
             };
             var typeIconContent = EditorGUIUtility.IconContent("Assembly Icon");
-            if (NamespacedType.root.Types.Count > 0) {
-                searchTreeEntries.Add(new SearchTreeGroupEntry(new GUIContent(NamespacedType.root.namespaceName), 1));
-                foreach (var type in NamespacedType.root.Types)
-                    searchTreeEntries.Add(new SearchTreeEntry(new GUIContent(type.Name)) {
-                        level = 2,
-                        userData = type,
-                    });
-            }
             var stack = new Stack<(Queue<NamespacedType>, ICollection<Type>)>();
-            stack.Push((new Queue<NamespacedType>(NamespacedType.root.SubNamespaces), null));
+            stack.Push((new Queue<NamespacedType>(NamespacedType.root.SubNamespaces), NamespacedType.root.Types));
             while (stack.Count > 0) {
                 var (pendingChildren, types) = stack.Peek();
                 if (pendingChildren.Count > 0) {
@@ -204,27 +200,19 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                     stack.Push((new Queue<NamespacedType>(child.SubNamespaces), child.Types));
                     continue;
                 }
-                if (types != null) {
-                    foreach (var type in types) {
-                        if (!Helper.IsTypeRseolvable(genericType, type)) continue;
-                        var objContent = type.IsSubclassOf(typeof(UnityEngine.Object)) ? EditorGUIUtility.ObjectContent(null, type) : typeIconContent;
-                        var name = type.Name;
-                        searchTreeEntries.Add(new SearchTreeEntry(new GUIContent(objContent) { text = name.Substring(name.LastIndexOf('.') + 1) }) {
-                            level = stack.Count,
-                            userData = type,
-                        });
-                    }
+                foreach (var type in types) {
+                    if (!Helper.IsTypeRseolvable(genericType, type)) continue;
+                    var objContent = type.IsSubclassOf(typeof(UnityEngine.Object)) ? EditorGUIUtility.ObjectContent(null, type) : typeIconContent;
+                    searchTreeEntries.Add(new SearchTreeEntry(new GUIContent(objContent) { text = type.Name }) {
+                        level = stack.Count,
+                        userData = type,
+                    });
                 }
                 stack.Pop();
             }
-            return searchTreeEntries;
+            return SearchWindowProvider.OpenSearchWindow(searchTreeEntries, o => OnSelected?.Invoke(o as Type));
         }
-
-        public bool OnSelectEntry(SearchTreeEntry entry, SearchWindowContext context) {
-            OnSelected?.Invoke(entry.userData as Type);
-            return true;
-        }
-    }
+  }
 
     internal class TypeResolverGUI {
         public readonly Type srcType;
@@ -250,6 +238,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public MethodInfo ResolvedMethod => IsReady ? srcMethod?.MakeGenericMethod(Resolve()) : null;
 
         public TypeResolverGUI(Type type) {
+            NamespacedType.Touch();
             srcType = type;
             constraints = type.GetGenericArguments();
             subGUI = new TypeResolverGUI[constraints.Length];
@@ -269,13 +258,14 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 rect = EditorGUI.PrefixLabel(rect, new GUIContent(constraints[i].Name));
                 if (GUI.Button(rect, resolvedTypes[i] != null ? $"T: {resolvedTypes[i].FullName}" : "", EditorStyles.textField)) {
                     int index = i;
-                    var typeMatcher = ScriptableObject.CreateInstance<TypeMatcher>();
-                    typeMatcher.genericType = constraints[i];
+                    var typeMatcher = new TypeMatcher {
+                        genericType = constraints[i],
+                    };
                     typeMatcher.OnSelected += type => {
                         resolvedTypes[index] = type;
                         subGUI[index] = null;
                     };
-                    SearchWindow.Open(new SearchWindowContext(GUIUtility.GUIToScreenPoint(Event.current.mousePosition)), typeMatcher);
+                    typeMatcher.ShowPopup();
                 }
                 if (resolvedTypes[i] != null && resolvedTypes[i].ContainsGenericParameters) {
                     if (subGUI[i] == null) subGUI[i] = new TypeResolverGUI(resolvedTypes[i]);

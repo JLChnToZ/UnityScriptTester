@@ -686,10 +686,11 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                             rect2 = Helper.ScaleRect(rect2, 0, 0, 1, 1, 0, 0, -36);
                         } else
                             buttonRect = Rect.zero;
+                        NamespacedType.Touch();
                         if (GUI.Button(rect2, value is Type t ? $"T: {t.FullName}" : "<Null>", EditorStyles.textField) && !readOnly) {
-                            var typeMatcher = ScriptableObject.CreateInstance<TypeMatcher>();
+                            var typeMatcher = new TypeMatcher();
                             typeMatcher.OnSelected += type => rawValue = type;
-                            SearchWindow.Open(new SearchWindowContext(GUIUtility.GUIToScreenPoint(Event.current.mousePosition)), typeMatcher);
+                            typeMatcher.ShowPopup();
                         }
                         EditorGUI.EndDisabledGroup();
                         if (rect.HasValue)
