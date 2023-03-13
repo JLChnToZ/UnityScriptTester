@@ -406,7 +406,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             if (OnClose != null)
                 EditorGUILayout.BeginHorizontal();
             EditorGUILayout.PrefixLabel(mode.ToString());
-            if (GUILayout.Button(selectedMethodIndex < 0 ? GUIContent.none : methodNames[selectedMethodIndex].content, EditorStyles.popup))
+            if (GUILayout.Button(selectedMethodIndex < 0 ? GUIContent.none : methodNames[selectedMethodIndex + 1].content, EditorStyles.popup))
                 ShowSearchPopup();
             if (OnClose != null) {
                 if (GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Minus"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
