@@ -16,7 +16,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private MemberInfo memberInfo;
         private readonly List<PropertyType> castableTypes;
         private PropertyType currentType;
-        private readonly object target;
+        private object target;
         private object rawValue;
         private bool referenceMode;
         private int grabValueMode;
@@ -276,7 +276,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public void Draw() => Draw(false);
 
         public void Draw(bool readOnly, Rect? rect = null) {
-            if (target.IsInvalid() && memberInfo.IsInstanceMember())
+            if (Helper.TryRecoverInvalid(ref target) && memberInfo.IsInstanceMember())
                 return;
             if (requiredType != null && requiredType.ContainsGenericParameters) {
                 Rect sRect = rect.HasValue ? rect.Value : EditorGUILayout.GetControlRect(true, EditorGUIUtility.singleLineHeight, GUI.skin.button);
@@ -320,7 +320,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                     Updatable = EditorGUILayout.ToggleLeft(new GUIContent("", "Update Enabled"), Updatable, GUILayout.Width(EditorGUIUtility.singleLineHeight));
                     Helper.StoreState(memberInfo, Updatable);
                 } else
-                    EditorGUILayout.LabelField(GUIContent.none, GUILayout.Width(EditorGUIUtility.singleLineHeight));
+                    GUILayout.Space(EditorGUIUtility.singleLineHeight);
                 if (referenceMode || grabValueMode == 1)
                     DrawReferencedField(null);
                 else if (grabValueMode == 4)
@@ -405,7 +405,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void AddField(UnityObject target) {
-            if (target.IsInvalid())
+            if (Helper.TryRecoverInvalid(ref target))
                 return;
             BindingFlags flag = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy;
             if (privateFields)
@@ -724,7 +724,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         private void DrawUnknownField(bool readOnly, object target, Rect? position = null) {
-            if (target.IsInvalid())
+            if (Helper.TryRecoverInvalid(ref target))
                 return;
             bool clicked;
             if (!position.HasValue)

@@ -31,8 +31,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         internal static TypedDrawer[] Of(Type type) {
             if (type.IsClass && !type.IsAbstract && type.IsSubclassOf(typeof(InspectorDrawer))) {
-                var attributes = Attribute.GetCustomAttributes(type, typeof(CustomInspectorDrawerAttribute)) as CustomInspectorDrawerAttribute[];
-                if (attributes != null && attributes.Length > 0) {
+                if (Attribute.GetCustomAttributes(type, typeof(CustomInspectorDrawerAttribute)) is CustomInspectorDrawerAttribute[] attributes && attributes.Length > 0) {
                     var drawers = new TypedDrawer[attributes.Length];
                     for (int i = 0; i < attributes.Length; i++)
                         drawers[i] = new TypedDrawer(type, attributes[i].TargetType, attributes[i].Priority);
@@ -57,6 +56,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
     public class InspectorDrawer: IDisposable {
         private static readonly HashSet<TypedDrawer> typedDrawers = new HashSet<TypedDrawer>();
         public object target;
+        private string guid;
         internal readonly List<IReflectorDrawer> drawer = new List<IReflectorDrawer>();
         private readonly HashSet<IReflectorDrawer> removingDrawers = new HashSet<IReflectorDrawer>();
         public bool shown;
@@ -101,8 +101,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         public InspectorDrawer(object target, Type targetType, bool shown, bool showProps, bool showPrivateFields, bool showObsolete, bool showMethods) {
             this.target = target;
+            if (target is UnityObject unityObject) AssetDatabase.TryGetGUIDAndLocalFileIdentifier(unityObject, out guid, out long _);
             BindingFlags flag = BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy;
-            if (!target.IsInvalid())
+            if (!Helper.TryRecoverInvalid(ref target))
                 flag |= BindingFlags.Instance;
             if (allowPrivate = showPrivateFields)
                 flag |= BindingFlags.NonPublic;
@@ -145,7 +146,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             allowMethods = showMethods;
             foreach (var d in drawer)
                 d.OnRequireRedraw += RequireRedraw;
-            if (!target.IsInvalid())
+            if (!Helper.TryRecoverInvalid(ref target))
                 this.shown = Helper.GetState(target, shown);
         }
 
@@ -161,7 +162,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         public void Draw(bool drawHeader = true, bool readOnly = false) {
             if (drawHeader) {
                 shown = EditorGUILayout.InspectorTitlebar(shown, target as UnityObject);
-                if (!target.IsInvalid())
+                if (!Helper.TryRecoverInvalid(ref target))
                     Helper.StoreState(target, shown);
                 if (!shown)
                     return;
@@ -230,7 +231,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         public virtual void UpdateValues(bool updateProps) {
-            if (target.IsInvalid()) return;
+            if (Helper.TryRecoverInvalid(ref target, guid)) return;
             foreach (var drawerItem in drawer) {
                 if (!(drawerItem is MethodPropertyDrawer propDrawer))
                     continue;
@@ -249,7 +250,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         }
 
         protected void RequireRedraw() {
-            if (!target.IsInvalid() && OnRequireRedraw != null)
+            if (!Helper.TryRecoverInvalid(ref target) && OnRequireRedraw != null)
                 OnRequireRedraw();
         }
     }

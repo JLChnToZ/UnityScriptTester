@@ -16,6 +16,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private bool showObsolete;
         private bool showMethods;
         private Rect menuButtonRect;
+        private object target;
+        private string targetGuid;
+        private Type targetType;
 
         public static void Open(object target, bool showProps, bool showPrivate, bool showObsolete, bool showMethods, bool updateProps, MethodPropertyDrawer parent) =>
             CreateInstance<InspectorChildWindow>().InternalOpen(target, target.GetType(), showProps, showPrivate, showObsolete, showMethods, updateProps, parent);
@@ -30,6 +33,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             } else {
                 drawer = InspectorDrawer.GetDrawer(target, targetType, true, showProps, showPrivate, showObsolete, showMethods);
                 drawer.OnRequireRedraw += Repaint;
+                if (target is UnityObject unityObject) AssetDatabase.TryGetGUIDAndLocalFileIdentifier(unityObject, out targetGuid, out long _);
             }
             this.showProps = showProps;
             this.showPrivate = showPrivate;
@@ -37,6 +41,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             this.showMethods = showMethods;
             this.parent = parent;
             this.updateProps = updateProps;
+            this.target = target;
+            this.targetType = targetType;
             ShowUtility();
             UpdateValues();
             isReadOnly = parent != null && parent.IsReadOnly && parent.requiredType != null && parent.requiredType.IsValueType;
@@ -57,6 +63,11 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                         drawer.OnRequireRedraw += Repaint;
                     }
                 }
+                return;
+            }
+            if (drawer == null && target != null) {
+                InternalOpen(target, targetType, showProps, showPrivate, showObsolete, showMethods, updateProps, parent);
+                EditorGUILayout.HelpBox("No drawer found.", MessageType.Error);
                 return;
             }
             GUILayout.BeginHorizontal(EditorStyles.toolbar);
@@ -136,8 +147,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         private void RefreshDrawer() {
             if (drawer == null) return;
+            if (Helper.TryRecoverInvalid(ref drawer.target, targetGuid)) return;
             var target = drawer.target;
-            if (target.IsInvalid()) return;
             drawer.Dispose();
             drawer = InspectorDrawer.GetDrawer(target, target.GetType(), true, showProps, showPrivate, showObsolete, showMethods);
             drawer.OnRequireRedraw += Repaint;

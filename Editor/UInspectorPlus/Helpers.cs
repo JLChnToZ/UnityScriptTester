@@ -40,7 +40,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
     internal enum MethodMode {
         Method,
         Constructor,
-        Indexer
+        Indexer,
+        ExtensionMethod,
     }
 
     internal struct ComponentMethod {
@@ -180,7 +181,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             return defaultResult;
         }
 
-        internal static string GetMemberName(this MemberInfo member, bool simplifed = false, bool appendMemberName = true) {
+        internal static string GetMemberName(this MemberInfo member, bool simplifed = false, bool appendMemberName = true, bool isExtensionMethod = false) {
             var ret = new StringBuilder();
             var props = new List<string>();
             if (member is FieldInfo field) {
@@ -193,6 +194,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 if (field.IsLiteral)
                     props.Add(simplifed ? "C" : "Constant");
             } else if (member is MethodInfo method) {
+                if (isExtensionMethod)
+                    props.Add(simplifed ? "E" : "Ext.");
                 if (!method.IsPublic)
                     props.Add(simplifed ? "P" : "Private");
                 if (method.IsStatic)
@@ -222,6 +225,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             ret.JoinStringList(props, simplifed ? "" : ", ");
             if (props.Count > 0)
                 ret.Append(") ");
+            if (isExtensionMethod)
+                ret.Append(member.DeclaringType.Name).Append('.');
             if (appendMemberName)
                 ret.Append(member.Name);
             return ret.ToString();
@@ -518,6 +523,28 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         // Special checker to deal with "null" UnityEngine.Object (Internally null, but still exists in Mono heap)
         internal static bool IsInvalid(this object obj) => obj is UnityObject uObj ? !uObj : obj == null;
+
+        internal static bool TryRecoverInvalid<T>(ref T obj, string guid = null) where T : class {
+            // If an object is an invalid UnityObject, try to recover it
+            if (obj is UnityObject uObj && !uObj) {
+                var originalType = obj.GetType();
+                uObj = EditorUtility.InstanceIDToObject(uObj.GetInstanceID());
+                if (!uObj && !string.IsNullOrEmpty(guid)) {
+                    var assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                    if (!string.IsNullOrEmpty(assetPath)) {
+                        var asset = AssetDatabase.LoadAssetAtPath(assetPath, originalType);
+                        if (asset) uObj = asset;
+                    }
+                }
+                if (uObj && uObj.GetType() == originalType) {
+                    obj = (T)(object)uObj;
+                    return false;
+                }
+                obj = null; // Recover failed, set to null
+                return true;
+            }
+            return obj == null;
+        }
 
         internal static bool IsInternalType(this Type type) => !(
             type.IsSubclassOf(typeof(MonoBehaviour)) ||

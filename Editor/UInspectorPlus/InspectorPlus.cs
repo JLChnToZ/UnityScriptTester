@@ -60,6 +60,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private void OnFocus() => OnSelectionChange();
 
         private void OnGUI() {
+            EditorGUIUtility.labelWidth = Mathf.Max(position.width / 3, 150);
             GUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUI.changed = false;
             GUILayout.Space(8);
@@ -195,7 +196,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             var pendingRemoveDrawers = new List<InspectorDrawer[]>();
             var pendingAddDrawers = new List<InspectorDrawer[]>();
             foreach (var drawer in drawers)
-                if (drawer.Length <= 0 || drawer[0].target.IsInvalid() || !instanceIds.Contains(drawer[0].target.ObjIdOrHashCode())) {
+                if (drawer.Length <= 0 || Helper.TryRecoverInvalid(ref drawer[0].target) || !instanceIds.Contains(drawer[0].target.ObjIdOrHashCode())) {
                     pendingRemoveDrawers.Add(drawer);
                     foreach (var d in drawer) d.Dispose();
                 }
@@ -210,7 +211,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         private InspectorDrawer[] CreateDrawers(int instanceID) {
             var target = EditorUtility.InstanceIDToObject(instanceID);
-            if (target.IsInvalid())
+            if (Helper.TryRecoverInvalid(ref target))
                 return new InspectorDrawer[0];
             var ret = new List<InspectorDrawer>();
             try {
@@ -253,13 +254,13 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
         private void UpdateValues(bool updateProps) {
             for (int i = 0; i < drawers.Count; i++) {
                 var drawerGroup = drawers[i];
-                if (drawerGroup.Length == 0 || drawerGroup[0].target.IsInvalid()) {
+                if (drawerGroup.Length == 0 || Helper.TryRecoverInvalid(ref drawerGroup[0].target)) {
                     CheckSelection(true);
                     break;
                 }
                 int instanceID = drawerGroup[0].target.ObjIdOrHashCode();
                 for (int j = 0; j < drawerGroup.Length; j++) {
-                    if (drawerGroup[j].target.IsInvalid()) {
+                    if (Helper.TryRecoverInvalid(ref drawerGroup[j].target)) {
                         drawers[i] = CreateDrawers(instanceID);
                         break;
                     }
