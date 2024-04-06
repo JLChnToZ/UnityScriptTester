@@ -178,8 +178,13 @@ namespace JLChnToZ.EditorExtensions.SceneManagement {
                     EditorApplication.isPlaying = false;
                 } else if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) {
                     playScene = true;
-                    var loadedScenes = new List<string>(EditorSceneManager.loadedSceneCount);
-                    for (int i = 0, c = EditorSceneManager.loadedSceneCount; i < c; i++) {
+                    #if UNITY_2022_2_OR_NEWER
+                    int loadedSceneCount = SceneManager.loadedSceneCount;
+                    #else
+                    int loadedSceneCount = SceneManager.sceneCount;
+                    #endif
+                    var loadedScenes = new List<string>(loadedSceneCount);
+                    for (int i = 0; i < loadedSceneCount; i++) {
                         Scene scene = SceneManager.GetSceneAt(i);
                         if (scene.IsValid() && !string.IsNullOrEmpty(scene.path))
                             loadedScenes.Add(scene.path);

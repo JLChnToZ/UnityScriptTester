@@ -408,7 +408,12 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                         var genericArgs = method.GetGenericArguments();
                         if (parameters.Length > 0) {
                             var firstParam = parameters[0].ParameterType;
-                            if (firstParam.IsGenericMethodParameter) {
+                            #if NETSTANDARD2_1_OR_GREATER
+                            bool isGenericMethodParameter = firstParam.IsGenericMethodParameter;
+                            #else
+                            bool isGenericMethodParameter = firstParam.IsGenericParameter;
+                            #endif
+                            if (isGenericMethodParameter) {
                                 genericArgs[firstParam.GenericParameterPosition] = targetType;
                                 method = method.MakeGenericMethod(genericArgs);
                             } else if (firstParam.ContainsGenericParameters) {
@@ -466,7 +471,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             if (GUILayout.Button(selectedMethodIndex < 0 ? GUIContent.none : methodNames[selectedMethodIndex + 1].content, EditorStyles.popup))
                 ShowSearchPopup();
             if (OnClose != null) {
-                if (GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Minus"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Minus"), Helper.IconButtonStyle, GUILayout.ExpandWidth(false)))
                     OnClose();
                 EditorGUILayout.EndHorizontal();
             }

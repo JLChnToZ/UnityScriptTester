@@ -335,10 +335,10 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 hasMatchMenu = DrawAssignButton(rect.HasValue ? (Rect?)Helper.ScaleRect(rect.Value, 1, 0.5F, 0, 0, -EditorGUIUtility.singleLineHeight, -7.5F, 15, 15) : null);
             if (!hasMatchMenu && !readOnly && referenceModeBtn) {
                 if (rect.HasValue) {
-                    if (GUI.Button(rect.Value.ScaleRect(1, 0.5F, 0, 0, -EditorGUIUtility.singleLineHeight, -7.5F, 15, 15), EditorGUIUtility.IconContent("_Menu"), EditorStyles.miniLabel))
+                    if (GUI.Button(rect.Value.ScaleRect(1, 0.5F, 0, 0, -EditorGUIUtility.singleLineHeight, -7.5F, 15, 15), EditorGUIUtility.IconContent("_Menu"), Helper.IconButtonStyle))
                         ShowMenu(rect.Value);
                 } else {
-                    if (GUILayout.Button(EditorGUIUtility.IconContent("_Menu"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false)))
+                    if (GUILayout.Button(EditorGUIUtility.IconContent("_Menu"), Helper.IconButtonStyle, GUILayout.ExpandWidth(false)))
                         ShowMenu(menuButtonRect);
                     if (Event.current.type == EventType.Repaint)
                         menuButtonRect = GUILayoutUtility.GetLastRect();
@@ -449,8 +449,8 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                     hasButton = true;
                     if (
                         rect.HasValue ?
-                        GUI.Button(rect.Value, EditorGUIUtility.IconContent("Linked"), EditorStyles.miniLabel) :
-                        GUILayout.Button(EditorGUIUtility.IconContent("Linked"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false))
+                        GUI.Button(rect.Value, EditorGUIUtility.IconContent("Linked"), Helper.IconButtonStyle) :
+                        GUILayout.Button(EditorGUIUtility.IconContent("Linked"), Helper.IconButtonStyle, GUILayout.ExpandWidth(false))
                     ) {
                         drawer.TryApplyValue(rawValue);
                         finishedDrawer = drawer;
@@ -728,9 +728,9 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
                 return;
             bool clicked;
             if (!position.HasValue)
-                clicked = GUILayout.Button(EditorGUIUtility.IconContent("MoreOptions"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false));
+                clicked = GUILayout.Button(EditorGUIUtility.IconContent("MoreOptions"), Helper.IconButtonStyle, GUILayout.ExpandWidth(false));
             else
-                clicked = GUI.Button(position.Value, EditorGUIUtility.IconContent("MoreOptions"), EditorStyles.miniLabel);
+                clicked = GUI.Button(position.Value, EditorGUIUtility.IconContent("MoreOptions"), Helper.IconButtonStyle);
             if (clicked)
                 InspectorChildWindow.Open(target, true, privateFields, obsolete, true, false, this);
         }

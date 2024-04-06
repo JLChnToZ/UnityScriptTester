@@ -206,7 +206,7 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
             if (allowMethods) {
                 GUILayout.BeginHorizontal();
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Plus", "Add Method / Index Properties Watcher"), EditorStyles.miniLabel, GUILayout.ExpandWidth(false))) {
+                if (GUILayout.Button(EditorGUIUtility.IconContent("Toolbar Plus", "Add Method / Index Properties Watcher"), Helper.IconButtonStyle, GUILayout.ExpandWidth(false))) {
                     ComponentMethodDrawer newDrawer = null;
                     newDrawer = new ComponentMethodDrawer(target, targetType) {
                         AllowPrivateFields = allowPrivate,

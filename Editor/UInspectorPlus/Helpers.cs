@@ -477,6 +477,12 @@ namespace JLChnToZ.EditorExtensions.UInspectorPlus {
 
         internal static GUIStyle GetGUIStyle(string styleName) => GUI.skin.FindStyle(styleName) ??
             EditorGUIUtility.GetBuiltinSkin(EditorSkin.Inspector).FindStyle(styleName);
+        
+        #if UNITY_2021_2_OR_NEWER
+        internal static GUIStyle IconButtonStyle => EditorStyles.iconButton;
+        #else
+        internal static GUIStyle IconButtonStyle => EditorStyles.miniButton;
+        #endif
 
         internal static T GetOrDefault<T>(object value, T defaultValue = default) {
             if (value == null) return defaultValue;
