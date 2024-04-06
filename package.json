@@ -1,6 +1,7 @@
 {
   "name": "idv.jlchntoz.editorutils",
-  "version": "0.6.0",
+  "version": "0.7.0",
+  "unity": "2019.4",
   "displayName": "JLChnToZ Editor Utilities",
   "description": "This is an editor utilities collections includes Inspector+",
   "licensesUrl": "https://github.com/JLChnToZ/UnityScriptTester/blob/master/LICENSE",
